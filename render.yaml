@@ -1,0 +1,27 @@
+# Render Blueprint: one web service that serves the website AND the API.
+# Database lives in Supabase (set DATABASE_URL in the Render dashboard).
+services:
+  - type: web
+    name: physiolink
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: DEMO_PASSWORD
+        sync: false
