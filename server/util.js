@@ -54,7 +54,7 @@ export function chatTime(date) {
   }).format(d);
 }
 
-const isSafeUrl = (v) => typeof v === 'string' && (v.startsWith('/') || /^https?:\/\//i.test(v)) && v.length < 1000;
+const isSafeUrl = (v) => typeof v === 'string' && (v === '' || /^https:\/\//i.test(v)) && v.length < 1000;
 
 const PROFILE_STRING_FIELDS = [
   'name', 'headline', 'avatar', 'coverImage', 'openToWorkText', 'location',

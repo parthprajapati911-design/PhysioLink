@@ -1,3 +1,4 @@
+import { Avatar } from './Avatar';
 import React, { useState, useRef, useEffect } from 'react';
 import { Conversation, ChatMessage, UserProfile, Connection } from '../types';
 import { 
@@ -246,12 +247,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
                 >
                   {/* Avatar & Online status */}
                   <div className="relative shrink-0">
-                    <img
-                      src={conv.participant.avatar}
-                      alt={conv.participant.name}
-                      className="w-12 h-12 rounded-full object-cover border border-slate-200"
-                      referrerPolicy="no-referrer"
-                    />
+                    <Avatar src={conv.participant.avatar} name={conv.participant.name} className="w-12 h-12 rounded-full  border border-slate-200" />
                     {conv.participant.isOnline && (
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
                     )}
@@ -314,12 +310,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
               </button>
 
               <div className="relative">
-                <img
-                  src={activeConversation.participant.avatar}
-                  alt={activeConversation.participant.name}
-                  className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                  referrerPolicy="no-referrer"
-                />
+                <Avatar src={activeConversation.participant.avatar} name={activeConversation.participant.name} className="w-10 h-10 rounded-full  border border-slate-200" />
                 {activeConversation.participant.isOnline && (
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
                 )}
@@ -358,12 +349,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
             
             {/* Connection Banner Note */}
             <div className="text-center py-4 px-6 max-w-md mx-auto bg-white rounded-xl border border-slate-200/80 shadow-2xs">
-              <img
-                src={activeConversation.participant.avatar}
-                alt=""
-                className="w-12 h-12 rounded-full mx-auto object-cover mb-2 border border-slate-200"
-                referrerPolicy="no-referrer"
-              />
+              <Avatar src={activeConversation.participant.avatar} name={activeConversation.participant.name} className="w-12 h-12 rounded-full mx-auto  mb-2 border border-slate-200" />
               <p className="text-xs font-bold text-slate-900">
                 Connected with {activeConversation.participant.name}
               </p>
@@ -527,7 +513,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Type a name or clinical specialty..."
+                  placeholder="Type a name"
                   value={composeSearch}
                   onChange={(e) => setComposeSearch(e.target.value)}
                   className="w-full bg-slate-50 text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500"
@@ -547,12 +533,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
                   className="p-2.5 hover:bg-slate-50 rounded-xl flex items-center justify-between cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <img
-                      src={recipient.avatar}
-                      alt={recipient.name}
-                      className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                      referrerPolicy="no-referrer"
-                    />
+                    <Avatar src={recipient.avatar} name={recipient.name} className="w-9 h-9 rounded-full  border border-slate-200" />
                     <div>
                       <div className="flex items-center gap-1">
                         <span className="text-xs font-bold text-slate-900">{recipient.name}</span>

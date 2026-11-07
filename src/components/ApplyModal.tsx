@@ -19,10 +19,8 @@ export const ApplyModal: React.FC<ApplyModalProps> = ({
 }) => {
   if (!isOpen || !opportunity) return null;
 
-  const [coverNote, setCoverNote] = useState(
-    `Dear Hiring Committee at ${opportunity.organization},\n\nI am writing to express my interest in the ${opportunity.title} role. With my background in ${currentUser.specialization} and clinical training at ${currentUser.accountType === 'student' ? currentUser.college : currentUser.currentCompany}, I am confident in contributing immediately to your clinical team.`
-  );
-  const [phone, setPhone] = useState('+91 98201 54892');
+  const [coverNote, setCoverNote] = useState('');
+  const [phone, setPhone] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

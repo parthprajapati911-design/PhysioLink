@@ -1,3 +1,4 @@
+import { Avatar } from './Avatar';
 import React, { useState } from 'react';
 import { Connection, UserProfile } from '../types';
 import { 
@@ -45,8 +46,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
       c.location.toLowerCase().includes(searchQuery.toLowerCase());
     
     if (selectedSpecialty === 'all') return matchesSearch;
-    if (selectedSpecialty === 'student') return matchesSearch && c.accountType === 'student';
-    return matchesSearch && c.specialization.toLowerCase().includes(selectedSpecialty.toLowerCase());
+    return matchesSearch && c.accountType === selectedSpecialty;
   });
 
   return (
@@ -59,7 +59,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             Physiotherapy Professional Network
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Connect with clinical specialists, academic mentors, and peer students across India.
+            Find and connect with other physiotherapists.
           </p>
         </div>
 
@@ -89,12 +89,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             {pendingRequests.map((req) => (
               <div key={req.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
-                  <img
-                    src={req.avatar}
-                    alt={req.name}
-                    className="w-12 h-12 rounded-full object-cover shrink-0 border border-slate-200"
-                    referrerPolicy="no-referrer"
-                  />
+                  <Avatar src={req.avatar} name={req.name} className="w-12 h-12 rounded-full  shrink-0 border border-slate-200" />
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-bold text-slate-900">{req.name}</span>
@@ -103,7 +98,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
                     </div>
                     <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">{req.headline}</p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      {req.mutualCount} mutual clinical connections
+                      {req.mutualCount} mutual connections
                     </p>
                   </div>
                 </div>
@@ -136,7 +131,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search by name, hospital, college, or city..."
+              placeholder="Search by name, workplace or city"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 text-xs border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 focus:border-blue-500 focus:outline-none"
@@ -147,50 +142,34 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             <button
               onClick={() => setSelectedSpecialty('all')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                selectedSpecialty === 'all' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               All
             </button>
             <button
-              onClick={() => setSelectedSpecialty('orthopedics')}
+              onClick={() => setSelectedSpecialty('academician')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'orthopedics' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                selectedSpecialty === 'academician' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Orthopedics
+              Academicians
             </button>
             <button
-              onClick={() => setSelectedSpecialty('neuro')}
+              onClick={() => setSelectedSpecialty('clinician')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'neuro' ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                selectedSpecialty === 'clinician' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Neuro
-            </button>
-            <button
-              onClick={() => setSelectedSpecialty('sports')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'sports' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Sports
-            </button>
-            <button
-              onClick={() => setSelectedSpecialty('pediatric')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'pediatric' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Pediatrics
+              Clinicians
             </button>
             <button
               onClick={() => setSelectedSpecialty('student')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                selectedSpecialty === 'student' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                selectedSpecialty === 'student' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Students & Interns
+              Students
             </button>
           </div>
         </div>
@@ -199,7 +178,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
       {/* 3. Suggested Professionals Grid */}
       <div>
         <h2 className="text-sm font-bold text-slate-900 font-display mb-3">
-          People You May Know in Physiotherapy ({filteredSuggestions.length})
+          People on PhysioLink ({filteredSuggestions.length})
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -210,12 +189,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             >
               <div>
                 <div className="relative inline-block mx-auto mb-3">
-                  <img
-                    src={person.avatar}
-                    alt={person.name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm"
-                    referrerPolicy="no-referrer"
-                  />
+                  <Avatar src={person.avatar} name={person.name} className="w-16 h-16 rounded-full  border-2 border-slate-100 shadow-sm" />
                   {person.verified && (
                     <ShieldCheck className="w-4 h-4 text-teal-600 bg-white rounded-full absolute bottom-0 right-0 shadow" />
                   )}
@@ -231,7 +205,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
 
                 <div className="mt-3 py-1.5 px-2 bg-slate-50 rounded-lg text-[10px] text-slate-600 flex items-center justify-center gap-1">
                   <Building className="w-3 h-3 text-slate-400" />
-                  <span className="truncate">{person.institution}</span>
+                  <span className="truncate">{person.institution || '—'}</span>
                 </div>
 
                 <p className="text-[10px] text-slate-400 mt-2">

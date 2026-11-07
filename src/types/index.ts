@@ -1,4 +1,8 @@
-export type AccountType = 'clinician' | 'student' | 'researcher' | 'institution' | 'admin';
+// 'none' = the member has not picked a tag in their profile yet.
+export type AccountType = 'none' | 'academician' | 'clinician' | 'student' | 'researcher' | 'institution' | 'admin';
+
+// The tag a member picks on a post. (Older posts may still carry a legacy value.)
+export type PostTag = 'case' | 'achievement' | 'research' | 'event' | 'update';
 
 export interface ClinicalMetric {
   label: string;
@@ -25,7 +29,7 @@ export interface Post {
   authorVerified: boolean;
   accountType: AccountType;
   timestamp: string;
-  type: 'case_study' | 'research' | 'achievement' | 'general' | 'student_case';
+  type: string;
   title: string;
   content: string;
   tags: string[];
@@ -226,5 +230,5 @@ export interface Conversation {
   messages: ChatMessage[];
 }
 
-export type ViewTab = 'home' | 'network' | 'messaging' | 'create' | 'opportunities' | 'research' | 'profile' | 'admin';
+export type ViewTab = 'home' | 'network' | 'messaging' | 'create' | 'opportunities' | 'profile' | 'admin';
 export type ViewportMode = 'desktop' | 'mobile';

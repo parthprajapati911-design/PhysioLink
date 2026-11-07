@@ -16,7 +16,8 @@ import authRoutes from './routes/auth.js';
 import postRoutes from './routes/posts.js';
 import socialRoutes from './routes/social.js';
 import adminRoutes from './routes/admin.js';
-import { ensureAdmin, seedDemoData } from './seed.js';
+import { ensureAdmin, seedDemoData, purgeDemoData } from './seed.js';
+import { uploadRouter } from './routes/images.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -31,18 +32,23 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      scriptSrc: ["'self'", 'https://accounts.google.com/gsi/client'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://accounts.google.com/gsi/style'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", 'https://accounts.google.com/gsi/'],
+      frameSrc: ['https://accounts.google.com/gsi/'],
       objectSrc: ["'none'"],
       frameAncestors: ["'self'"],
       upgradeInsecureRequests: isProd ? [] : null,
     },
   },
+  // Google's sign-in popup needs to talk back to this page.
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
 }));
 app.use(compression());
+// Photo uploads are larger than other requests (the browser shrinks them first).
+app.use('/api/images', express.json({ limit: '3.5mb' }));
 app.use(express.json({ limit: '300kb' }));
 app.use(cookieParser());
 
@@ -56,6 +62,7 @@ const authLimiter = rateLimit({
 app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/signup', authLimiter);
+app.use('/api/auth/google', authLimiter);
 app.use('/api/auth', authRoutes);
 
 // Everything below needs a signed-in user.
@@ -66,6 +73,7 @@ app.get('/api/bootstrap', requireAuth, ah(async (req, res) => {
 const api = express.Router();
 api.use(requireAuth);
 api.use('/posts', postRoutes);
+api.use('/images', uploadRouter);
 api.use(socialRoutes);
 api.use(adminRoutes);
 app.use('/api', api);
@@ -93,6 +101,7 @@ app.use((err, _req, res, _next) => {
 async function start() {
   await migrate();
   await ensureAdmin();
+  await purgeDemoData();
   await seedDemoData();
   const server = app.listen(PORT, () => console.log(`PhysioLink listening on port ${PORT}`));
   const shutdown = () => server.close(() => pool.end().finally(() => process.exit(0)));

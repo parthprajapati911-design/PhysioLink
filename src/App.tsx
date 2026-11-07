@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ViewTab,
-  ViewportMode,
   UserProfile,
   Post,
   Opportunity,
@@ -12,7 +11,7 @@ import {
 } from './types';
 import { api, errorMessage } from './api';
 import type { Bootstrap } from './api';
-import { LOGO_URL } from './data/mockData';
+import { LOGO_URL, BRAND_NAME, TAGLINE } from './data/brand';
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { WelcomeAuthScreen } from './components/WelcomeAuthScreen';
@@ -22,25 +21,15 @@ import { NetworkView } from './components/NetworkView';
 import { MessagingView } from './components/MessagingView';
 import { FloatingMessagingWidget } from './components/FloatingMessagingWidget';
 import { OpportunitiesView } from './components/OpportunitiesView';
-import { ResearchHubView } from './components/ResearchHubView';
 import { AdminView } from './components/AdminView';
 import { CreatePostModal } from './components/CreatePostModal';
 import { EditProfileModal } from './components/EditProfileModal';
 import { ApplyModal } from './components/ApplyModal';
-import {
-  Wifi,
-  Battery,
-  Monitor,
-  PlusCircle,
-  LogOut
-} from 'lucide-react';
-
 type AuthStatus = 'loading' | 'out' | 'in';
 
 export default function App() {
   // Navigation & Viewport State
   const [currentTab, setCurrentTab] = useState<ViewTab>('home');
-  const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const [toast, setToast] = useState<string | null>(null);
 
@@ -56,7 +45,6 @@ export default function App() {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [editProfileInitialTab, setEditProfileInitialTab] = useState<'general' | 'education' | 'skills'>('general');
   const [selectedOppForApply, setSelectedOppForApply] = useState<Opportunity | null>(null);
 
   // Only used after sign-in (the app shows the login screen until data is loaded)
@@ -154,9 +142,9 @@ export default function App() {
 
   // ---------- Auth ----------
   // These return an error message (or null on success) so the login form can show it.
-  const handleLogin = async (identifier: string, password: string): Promise<string | null> => {
+  const handleLogin = async (email: string, password: string): Promise<string | null> => {
     try {
-      await api.login(identifier, password);
+      await api.login(email, password);
       await refresh();
       return null;
     } catch (e) {
@@ -164,9 +152,20 @@ export default function App() {
     }
   };
 
-  const handleSignUp = async (profile: UserProfile, password: string): Promise<string | null> => {
+  const handleSignUp = async (name: string, email: string, password: string): Promise<string | null> => {
     try {
-      await api.signup(profile, password);
+      await api.signup(name, email, password);
+      await refresh();
+      setCurrentTab('profile');
+      return null;
+    } catch (e) {
+      return errorMessage(e);
+    }
+  };
+
+  const handleGoogle = async (credential: string): Promise<string | null> => {
+    try {
+      await api.googleSignIn(credential);
       await refresh();
       return null;
     } catch (e) {
@@ -284,54 +283,9 @@ export default function App() {
     setCurrentTab('messaging');
   };
 
-  const handleOpenEditProfile = (tab: 'general' | 'education' | 'skills' = 'general') => {
-    setEditProfileInitialTab(tab);
-    setIsEditProfileOpen(true);
-  };
-
-  const handleEndorseSkill = (targetUserId: string, skillName: string, isEndorsing: boolean) => {
-    setUsers((prev) => {
-      const target = prev[targetUserId];
-      if (!target) return prev;
-      const updatedSkills = target.skills.map((skill) => {
-        if (skill.name === skillName) {
-          const delta = isEndorsing ? 1 : -1;
-          const currentEndorsers = skill.endorsers || [];
-          let updatedEndorsers = currentEndorsers;
-          if (isEndorsing) {
-            if (!currentEndorsers.some((e) => e.id === currentUser.id)) {
-              updatedEndorsers = [
-                {
-                  id: currentUser.id,
-                  name: currentUser.name,
-                  headline: currentUser.headline,
-                  avatar: currentUser.avatar,
-                  verified: currentUser.verifiedStatus === 'verified',
-                },
-                ...currentEndorsers,
-              ];
-            }
-          } else {
-            updatedEndorsers = currentEndorsers.filter((e) => e.id !== currentUser.id);
-          }
-          return {
-            ...skill,
-            endorsements: Math.max(0, skill.endorsements + delta),
-            endorsers: updatedEndorsers,
-          };
-        }
-        return skill;
-      });
-      return { ...prev, [targetUserId]: { ...target, skills: updatedSkills } };
-    });
-    run(api.endorse(targetUserId, skillName, isEndorsing));
-  };
+  const handleOpenEditProfile = () => setIsEditProfileOpen(true);
 
   // ---------- Handlers ----------
-  const handleToggleViewport = () => {
-    setViewportMode((prev) => (prev === 'desktop' ? 'mobile' : 'desktop'));
-  };
-
   const handleLikePost = (postId: string) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
@@ -373,19 +327,16 @@ export default function App() {
       .catch((e) => notify(errorMessage(e)));
   };
 
-  const handleCreatePost = (
-    newPostData: Omit<
-      Post,
-      'id' | 'likesCount' | 'isLiked' | 'commentsCount' | 'comments' | 'bookmarksCount' | 'isBookmarked'
-    >
-  ) => {
-    api
-      .createPost(newPostData)
-      .then(({ post }) => {
-        setPosts((prev) => [post, ...prev]);
-        setCurrentTab('home');
-      })
-      .catch((e) => notify(errorMessage(e)));
+  // Returns the promise so the post window can show an error and stay open if it fails.
+  const handleCreatePost = (data: { type: string; content: string; imageUrl?: string }) =>
+    api.createPost(data).then(({ post }) => {
+      setPosts((prev) => [post, ...prev]);
+      setCurrentTab('home');
+    });
+
+  const handleDeletePost = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    run(api.deletePost(postId));
   };
 
   const handleSaveProfile = (updatedUser: UserProfile) => {
@@ -462,15 +413,12 @@ export default function App() {
   }
 
   if (authStatus === 'out' || !currentUser) {
-    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} />;
+    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} onGoogle={handleGoogle} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900">
-      
-      {/* Global Modals */}
       <CreatePostModal
-        currentUser={currentUser}
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleCreatePost}
@@ -481,7 +429,6 @@ export default function App() {
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         onSave={handleSaveProfile}
-        initialTab={editProfileInitialTab}
       />
 
       <ApplyModal
@@ -492,98 +439,88 @@ export default function App() {
         onSubmit={handleApplyOpportunity}
       />
 
-      {/* VIEWPORT MODE 1: DESKTOP PROFESSIONAL WORKSPACE */}
-      {viewportMode === 'desktop' ? (
-        <div className="flex-1 flex flex-col relative">
-          {/* Header */}
-          <Header
-            currentTab={currentTab}
-            onSelectTab={setCurrentTab}
-            viewportMode={viewportMode}
-            onToggleViewport={handleToggleViewport}
-            currentUser={currentUser}
-            allUsers={users}
-            onOpenCreateModal={() => setIsCreateModalOpen(true)}
-            onSignOut={handleSignOut}
-            unreadMessagesCount={totalUnreadMessages}
-          />
+      <div className="flex-1 flex flex-col relative">
+        <Header
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          currentUser={currentUser}
+          allUsers={users}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          unreadMessagesCount={totalUnreadMessages}
+        />
 
-          {/* Main Content Area */}
-          <main className="flex-1 py-6 px-4 sm:px-6">
-            {currentTab === 'home' && (
-              <FeedView
-                posts={posts}
-                currentUser={currentUser}
-                onLikePost={handleLikePost}
-                onBookmarkPost={handleBookmarkPost}
-                onAddComment={handleAddComment}
-                onOpenCreateModal={() => setIsCreateModalOpen(true)}
-                onViewProfile={() => setCurrentTab('profile')}
-                onViewOpportunities={() => setCurrentTab('opportunities')}
-              />
-            )}
+        <main className="flex-1 py-6 px-4 sm:px-6 pb-24 md:pb-6">
+          {currentTab === 'home' && (
+            <FeedView
+              posts={posts}
+              currentUser={currentUser}
+              onLikePost={handleLikePost}
+              onBookmarkPost={handleBookmarkPost}
+              onAddComment={handleAddComment}
+              onDeletePost={handleDeletePost}
+              onOpenCreateModal={() => setIsCreateModalOpen(true)}
+              onViewProfile={() => setCurrentTab('profile')}
+            />
+          )}
 
-            {currentTab === 'profile' && (
-              <ProfileView
-                user={currentUser}
-                onEditProfile={handleOpenEditProfile}
-                onEndorseSkill={(skillName, isEndorsing) => handleEndorseSkill(currentUser.id, skillName, isEndorsing)}
-                currentLoggedInUser={currentUser}
-                onOpenChat={() => setCurrentTab('messaging')}
-              />
-            )}
+          {currentTab === 'profile' && (
+            <ProfileView
+              user={currentUser}
+              posts={posts.filter((p) => p.authorId === currentUser.id)}
+              onEditProfile={handleOpenEditProfile}
+              onSignOut={handleSignOut}
+              onLikePost={handleLikePost}
+              onBookmarkPost={handleBookmarkPost}
+              onAddComment={handleAddComment}
+              onDeletePost={handleDeletePost}
+              onOpenCreateModal={() => setIsCreateModalOpen(true)}
+            />
+          )}
 
-            {currentTab === 'network' && (
-              <NetworkView
-                connections={connections}
-                currentUser={currentUser}
-                onAcceptConnection={handleAcceptConnection}
-                onIgnoreConnection={handleIgnoreConnection}
-                onConnectRequest={handleConnectRequest}
-                onOpenChatWithUser={handleOpenChatWithUser}
-              />
-            )}
+          {currentTab === 'network' && (
+            <NetworkView
+              connections={connections}
+              currentUser={currentUser}
+              onAcceptConnection={handleAcceptConnection}
+              onIgnoreConnection={handleIgnoreConnection}
+              onConnectRequest={handleConnectRequest}
+              onOpenChatWithUser={handleOpenChatWithUser}
+            />
+          )}
 
-            {currentTab === 'messaging' && (
-              <MessagingView
-                conversations={resolvedConversations}
-                activeConversationId={activeConversationId}
-                onSelectConversation={setActiveConversationId}
-                onSendMessage={handleSendMessage}
-                currentUser={currentUser}
-                connections={connections}
-                allUsers={users}
-                onViewProfile={() => setCurrentTab('profile')}
-                onMarkAsRead={handleMarkAsRead}
-                onStartChat={handleOpenChatWithUser}
-              />
-            )}
+          {currentTab === 'messaging' && (
+            <MessagingView
+              conversations={resolvedConversations}
+              activeConversationId={activeConversationId}
+              onSelectConversation={setActiveConversationId}
+              onSendMessage={handleSendMessage}
+              currentUser={currentUser}
+              connections={connections}
+              allUsers={users}
+              onViewProfile={() => setCurrentTab('profile')}
+              onMarkAsRead={handleMarkAsRead}
+              onStartChat={handleOpenChatWithUser}
+            />
+          )}
 
-            {currentTab === 'opportunities' && (
-              <OpportunitiesView
-                opportunities={opportunities}
-                currentUser={currentUser}
-                onApply={(opp) => setSelectedOppForApply(opp)}
-              />
-            )}
+          {currentTab === 'opportunities' && (
+            <OpportunitiesView
+              opportunities={opportunities}
+              currentUser={currentUser}
+              onApply={(opp) => setSelectedOppForApply(opp)}
+            />
+          )}
 
-            {currentTab === 'research' && (
-              <ResearchHubView
-                currentUser={currentUser}
-                onOpenCreateStudy={() => setIsCreateModalOpen(true)}
-              />
-            )}
+          {currentTab === 'admin' && isAdmin && (
+            <AdminView
+              verifications={verifications}
+              onApproveVerification={handleApproveVerification}
+              onRejectVerification={handleRejectVerification}
+            />
+          )}
+        </main>
 
-            {currentTab === 'admin' && isAdmin && (
-              <AdminView
-                verifications={verifications}
-                onApproveVerification={handleApproveVerification}
-                onRejectVerification={handleRejectVerification}
-              />
-            )}
-          </main>
-
-          {/* Persistent Floating LinkedIn-Style Messaging Widget */}
+        <div className="hidden md:block">
           <FloatingMessagingWidget
             conversations={resolvedConversations}
             currentUser={currentUser}
@@ -593,196 +530,33 @@ export default function App() {
             onNavigateToMessagingTab={() => setCurrentTab('messaging')}
             onMarkAsRead={handleMarkAsRead}
           />
-
-          {/* Desktop Footer */}
-          <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <img src={LOGO_URL} alt="" className="w-5 h-5 rounded object-cover" />
-                <span className="font-bold text-slate-800">PhysioLink</span>
-                <span>— The Network for Every Physiotherapist</span>
-              </div>
-              <div className="flex items-center gap-4 text-[11px] text-slate-400">
-                <span>Council Verified Registry</span>
-                <span>·</span>
-                <span>Clinical Ethics & Patient Privacy</span>
-                <span>·</span>
-                <span>India & International</span>
-              </div>
-            </div>
-          </footer>
         </div>
-      ) : (
-        /* VIEWPORT MODE 2: MOBILE SMARTPHONE SIMULATOR FRAME */
-        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-6 bg-slate-900/90 min-h-screen">
-          
-          {/* Top Floating Simulator Controls */}
-          <div className="mb-4 flex items-center justify-between gap-4 w-full max-w-sm px-2 text-white">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-              <span className="font-semibold text-slate-200">Mobile Phone Viewport</span>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleToggleViewport}
-                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition-colors cursor-pointer"
-              >
-                <Monitor className="w-3.5 h-3.5 text-teal-400" />
-                <span>Switch to Desktop</span>
-              </button>
-            </div>
+        <footer className="bg-white border-t border-slate-200 py-5 pb-20 md:pb-5 text-xs text-slate-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center gap-2 text-center flex-wrap">
+            <img src={LOGO_URL} alt="" className="w-5 h-5 rounded object-cover" />
+            <span className="font-bold text-slate-800">{BRAND_NAME}</span>
+            <span>— {TAGLINE}</span>
           </div>
+        </footer>
 
-          {/* Smartphone Hardware Chassis */}
-          <div className="w-full max-w-[410px] h-[840px] max-h-[92vh] bg-white rounded-[44px] shadow-2xl border-[10px] border-slate-800 overflow-hidden flex flex-col relative">
-            
-            {/* Phone Speaker Notch & Camera Island */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 h-5 w-36 bg-slate-800 rounded-b-2xl z-50 flex items-center justify-center">
-              <div className="w-12 h-1 bg-slate-700 rounded-full"></div>
-            </div>
-
-            {/* Mobile Status Bar */}
-            <div className="bg-white/95 backdrop-blur px-6 pt-3 pb-1 flex items-center justify-between text-[11px] font-semibold text-slate-800 select-none shrink-0 z-40">
-              <span>09:41</span>
-              <div className="flex items-center gap-1.5 text-slate-700">
-                <Wifi className="w-3 h-3" />
-                <Battery className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            {/* Mobile Top App Bar */}
-            <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between gap-3 shrink-0 z-30">
-              <div className="flex items-center gap-2">
-                <img src={LOGO_URL} alt="" className="w-7 h-7 rounded-lg object-cover" />
-                <div>
-                  <span className="text-base font-bold text-slate-900 font-display leading-tight block">
-                    PhysioLink
-                  </span>
-                  <span className="text-[9px] text-teal-700 font-semibold uppercase tracking-wider block">
-                    Clinical Network
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="w-7 h-7 rounded-full bg-blue-700 text-white flex items-center justify-center shadow-sm cursor-pointer"
-                  title="Create Post"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={handleSignOut}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                  title="Sign Out / Welcome Portal"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile Scrollable View Canvas */}
-            <div className="flex-1 overflow-y-auto p-3.5 pb-20 bg-slate-50">
-              {currentTab === 'home' && (
-                <FeedView
-                  posts={posts}
-                  currentUser={currentUser}
-                  onLikePost={handleLikePost}
-                  onBookmarkPost={handleBookmarkPost}
-                  onAddComment={handleAddComment}
-                  onOpenCreateModal={() => setIsCreateModalOpen(true)}
-                  onViewProfile={() => setCurrentTab('profile')}
-                  onViewOpportunities={() => setCurrentTab('opportunities')}
-                />
-              )}
-
-              {currentTab === 'profile' && (
-                <ProfileView
-                  user={currentUser}
-                  onEditProfile={handleOpenEditProfile}
-                  onEndorseSkill={(skillName, isEndorsing) => handleEndorseSkill(currentUser.id, skillName, isEndorsing)}
-                  currentLoggedInUser={currentUser}
-                  onOpenChat={() => setCurrentTab('messaging')}
-                />
-              )}
-
-              {currentTab === 'network' && (
-                <NetworkView
-                  connections={connections}
-                  currentUser={currentUser}
-                  onAcceptConnection={handleAcceptConnection}
-                  onIgnoreConnection={handleIgnoreConnection}
-                  onConnectRequest={handleConnectRequest}
-                  onOpenChatWithUser={handleOpenChatWithUser}
-                />
-              )}
-
-              {currentTab === 'messaging' && (
-                <MessagingView
-                  conversations={resolvedConversations}
-                  activeConversationId={activeConversationId}
-                  onSelectConversation={setActiveConversationId}
-                  onSendMessage={handleSendMessage}
-                  currentUser={currentUser}
-                  connections={connections}
-                  allUsers={users}
-                  onViewProfile={() => setCurrentTab('profile')}
-                  onMarkAsRead={handleMarkAsRead}
-                  onStartChat={handleOpenChatWithUser}
-                />
-              )}
-
-              {currentTab === 'opportunities' && (
-                <OpportunitiesView
-                  opportunities={opportunities}
-                  currentUser={currentUser}
-                  onApply={(opp) => setSelectedOppForApply(opp)}
-                />
-              )}
-
-              {currentTab === 'research' && (
-                <ResearchHubView
-                  currentUser={currentUser}
-                  onOpenCreateStudy={() => setIsCreateModalOpen(true)}
-                />
-              )}
-
-              {currentTab === 'admin' && isAdmin && (
-                <AdminView
-                  verifications={verifications}
-                  onApproveVerification={handleApproveVerification}
-                  onRejectVerification={handleRejectVerification}
-                />
-              )}
-            </div>
-
-            {/* Mobile Native 5-Tab Bottom Navigation Bar */}
-            <MobileBottomNav
-              currentTab={currentTab}
-              onSelectTab={setCurrentTab}
-              onOpenCreateModal={() => setIsCreateModalOpen(true)}
-              currentUser={currentUser}
-              unreadMessagesCount={totalUnreadMessages}
-            />
-
-          </div>
-
-        </div>
-      )}
-
+        <MobileBottomNav
+          currentTab={currentTab}
+          onSelectTab={setCurrentTab}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          currentUser={currentUser}
+          unreadMessagesCount={totalUnreadMessages}
+        />
+      </div>
 
       {toast && (
         <div
           role="alert"
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] max-w-[90vw] bg-slate-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-xl"
+          className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-[100] max-w-[90vw] bg-slate-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-xl"
         >
           {toast}
         </div>
       )}
-
     </div>
   );
 }

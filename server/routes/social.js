@@ -12,6 +12,12 @@ router.put('/me', ah(async (req, res) => {
   const row = rows[0];
   const profile = cleanProfile(req.body?.profile || {}, row.profile || {});
   await query('update users set profile = $2 where id = $1', [req.user.id, profile]);
+  // The profile tag (academician / clinician / student). Admins keep their own type.
+  const TAGS = ['academician', 'clinician', 'student'];
+  if (row.role !== 'admin' && TAGS.includes(req.body?.accountType)) {
+    await query('update users set account_type = $2 where id = $1', [req.user.id, req.body.accountType]);
+    row.account_type = req.body.accountType;
+  }
   const { rows: c } = await query(
     `select count(*)::int as n from connections
      where status = 'accepted' and (requester_id = $1 or addressee_id = $1)`,

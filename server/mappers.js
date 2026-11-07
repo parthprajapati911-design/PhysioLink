@@ -11,7 +11,7 @@ export function toUser(row, { connectionsCount = 0, includeEmail = false } = {})
     email: includeEmail ? row.email : '',
     name: p.name || 'PhysioLink Member',
     headline: p.headline || '',
-    avatar: p.avatar || '/images/physiolink_logo_emblem_1793727246789.jpg',
+    avatar: p.avatar || '',
     coverImage: p.coverImage || '',
     verifiedStatus: row.verified_status,
     accountType: row.account_type,
@@ -37,7 +37,7 @@ const authorFields = (row) => {
     authorId: row.author_id,
     authorName: p.name || 'PhysioLink Member',
     authorHeadline: p.headline || '',
-    authorAvatar: p.avatar || '/images/physiolink_logo_emblem_1793727246789.jpg',
+    authorAvatar: p.avatar || '',
     authorVerified: row.author_verified === 'verified',
   };
 };

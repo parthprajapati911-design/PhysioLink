@@ -1,3 +1,4 @@
+import { Avatar } from './Avatar';
 import React, { useState, useRef, useEffect } from 'react';
 import { Conversation, UserProfile } from '../types';
 import { 
@@ -88,12 +89,7 @@ export const FloatingMessagingWidget: React.FC<FloatingMessagingWidgetProps> = (
         >
           <div className="flex items-center gap-2.5">
             <div className="relative">
-              <img
-                src={currentUser.avatar}
-                alt=""
-                className="w-7 h-7 rounded-full object-cover border border-slate-700"
-                referrerPolicy="no-referrer"
-              />
+              <Avatar src={currentUser.avatar} name={currentUser.name}  className="w-7 h-7 rounded-full text-xs border border-slate-700" />
               <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-slate-900"></span>
             </div>
 
@@ -145,12 +141,7 @@ export const FloatingMessagingWidget: React.FC<FloatingMessagingWidgetProps> = (
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
                     </button>
-                    <img
-                      src={activeMiniConv.participant.avatar}
-                      alt=""
-                      className="w-6 h-6 rounded-full object-cover border border-slate-200"
-                      referrerPolicy="no-referrer"
-                    />
+                    <Avatar src={activeMiniConv.participant.avatar} name={activeMiniConv.participant.name} className="w-6 h-6 rounded-full text-xs border border-slate-200" />
                     <div className="truncate">
                       <span className="text-xs font-bold text-slate-900 truncate block">
                         {activeMiniConv.participant.name}
@@ -272,12 +263,7 @@ export const FloatingMessagingWidget: React.FC<FloatingMessagingWidgetProps> = (
                       className="p-2.5 hover:bg-slate-50 flex items-start gap-2.5 cursor-pointer transition-colors"
                     >
                       <div className="relative shrink-0">
-                        <img
-                          src={c.participant.avatar}
-                          alt=""
-                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                          referrerPolicy="no-referrer"
-                        />
+                        <Avatar src={c.participant.avatar} name={c.participant.name} className="w-9 h-9 rounded-full text-xs border border-slate-200" />
                         {c.participant.isOnline && (
                           <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 ring-1 ring-white"></span>
                         )}

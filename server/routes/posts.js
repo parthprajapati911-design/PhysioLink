@@ -3,28 +3,23 @@ import { query } from '../db.js';
 import { loadPost } from '../data.js';
 import { toComment } from '../mappers.js';
 import { HttpError, ah, newId, str } from '../util.js';
+import { isOwnImageUrl } from './images.js';
 
 const router = Router();
-const POST_TYPES = ['case_study', 'research', 'achievement', 'general', 'student_case'];
+// One tag per post. (Older posts may still carry legacy types; those just display as before.)
+const POST_TAGS = ['case', 'achievement', 'research', 'event', 'update'];
 
 router.post('/', ah(async (req, res) => {
   const b = req.body || {};
-  const title = str(b.title, 200);
-  const content = str(b.content, 10000);
-  if (!title || !content) throw new HttpError(400, 'Title and content are required.');
-  const type = POST_TYPES.includes(b.type) ? b.type : 'general';
-  const tags = (Array.isArray(b.tags) ? b.tags : []).slice(0, 10).map((t) => str(t, 40)).filter(Boolean);
-  const metrics = Array.isArray(b.clinicalMetrics)
-    ? b.clinicalMetrics.slice(0, 10)
-        .map((m) => ({ label: str(m?.label, 80), value: str(m?.value, 120) }))
-        .filter((m) => m.label || m.value)
-    : [];
+  const content = str(b.content, 5000);
+  const imageUrl = isOwnImageUrl(b.imageUrl, req.user.id) ? b.imageUrl : null;
+  if (!content && !imageUrl) throw new HttpError(400, 'Add a photo or a caption to post.');
+  const type = POST_TAGS.includes(b.type) ? b.type : 'update';
   const id = newId('post');
   await query(
-    `insert into posts (id, author_id, type, title, content, tags, clinical_metrics, document_name)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [id, req.user.id, type, title, content, JSON.stringify(tags),
-      metrics.length ? JSON.stringify(metrics) : null, str(b.documentName, 200) || null],
+    `insert into posts (id, author_id, type, title, content, tags, image_url)
+     values ($1, $2, $3, '', $4, '[]'::jsonb, $5)`,
+    [id, req.user.id, type, content, imageUrl],
   );
   res.status(201).json({ post: await loadPost(req.user.id, id) });
 }));

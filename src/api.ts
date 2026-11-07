@@ -48,21 +48,25 @@ export const errorMessage = (e: unknown): string =>
 
 export const api = {
   // auth
-  login: (identifier: string, password: string) =>
-    request<{ ok: true }>('POST', '/api/auth/login', { identifier, password }),
-  signup: (profile: UserProfile, password: string) =>
-    request<{ ok: true }>('POST', '/api/auth/signup', { profile, password }),
+  authConfig: () => request<{ googleClientId: string | null }>('GET', '/api/auth/config'),
+  login: (email: string, password: string) =>
+    request<{ ok: true }>('POST', '/api/auth/login', { email, password }),
+  signup: (name: string, email: string, password: string) =>
+    request<{ ok: true }>('POST', '/api/auth/signup', { name, email, password }),
+  googleSignIn: (credential: string) =>
+    request<{ ok: true }>('POST', '/api/auth/google', { credential }),
   logout: () => request<{ ok: true }>('POST', '/api/auth/logout'),
   bootstrap: () => request<Bootstrap>('GET', '/api/bootstrap'),
 
   // profile
   saveProfile: (profile: UserProfile) =>
-    request<{ user: UserProfile }>('PUT', '/api/me', { profile }),
-  endorse: (userId: string, skill: string, value: boolean) =>
-    request<{ ok: true }>('POST', `/api/users/${encodeURIComponent(userId)}/endorse`, { skill, value }),
+    request<{ user: UserProfile }>('PUT', '/api/me', { profile, accountType: profile.accountType }),
+  uploadImage: (dataUrl: string) =>
+    request<{ url: string }>('POST', '/api/images', { dataUrl }),
+  deletePost: (id: string) => request<{ ok: true }>('DELETE', `/api/posts/${encodeURIComponent(id)}`),
 
   // posts
-  createPost: (post: unknown) => request<{ post: Post }>('POST', '/api/posts', post),
+  createPost: (post: { type: string; content: string; imageUrl?: string }) => request<{ post: Post }>('POST', '/api/posts', post),
   likePost: (id: string, value: boolean) =>
     request<{ count: number }>('PUT', `/api/posts/${encodeURIComponent(id)}/like`, { value }),
   bookmarkPost: (id: string, value: boolean) =>

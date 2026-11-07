@@ -1,43 +1,23 @@
 import React from 'react';
-import { ViewTab, ViewportMode, UserProfile } from '../types';
-import { LOGO_URL } from '../data/mockData';
-import { 
-  Home, 
-  Users, 
-  Briefcase, 
-  BookOpen, 
-  User, 
-  ShieldCheck, 
-  Smartphone, 
-  Monitor, 
-  Plus, 
-  Search,
-  CheckCircle2,
-  Sparkles,
-  LogOut,
-  MessageSquare
-} from 'lucide-react';
+import { ViewTab, UserProfile } from '../types';
+import { LOGO_URL, BRAND_NAME } from '../data/brand';
+import { Avatar } from './Avatar';
+import { Home, Users, Briefcase, User, ShieldCheck, Plus, Search, CheckCircle2, MessageSquare } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: ViewTab;
   onSelectTab: (tab: ViewTab) => void;
-  viewportMode?: ViewportMode;
-  onToggleViewport?: () => void;
   currentUser: UserProfile;
   allUsers?: Record<string, UserProfile>;
   onOpenCreateModal: () => void;
-  onSignOut?: () => void;
   unreadMessagesCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
-  viewportMode,
-  onToggleViewport,
   currentUser,
   onOpenCreateModal,
-  onSignOut,
   unreadMessagesCount = 0,
 }) => {
   return (
@@ -58,22 +38,17 @@ export const Header: React.FC<HeaderProps> = ({
                 className="w-9 h-9 rounded-lg object-cover shadow-sm group-hover:scale-105 transition-transform"
                 referrerPolicy="no-referrer"
               />
-              <div className="flex flex-col">
-                <span className="text-xl font-bold tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors font-display leading-none">
-                  PhysioLink
-                </span>
-                <span className="text-[10px] text-teal-700 font-semibold tracking-wide uppercase mt-0.5">
-                  Clinical Network
-                </span>
-              </div>
+              <span className="text-xl font-bold tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors font-display leading-none">
+                {BRAND_NAME}
+              </span>
             </button>
 
             {/* Search Bar */}
-            <div className="hidden md:flex items-center relative w-64 lg:w-80">
+            <div className="hidden md:flex items-center relative w-40 lg:w-52 xl:w-72">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search clinicians, cases, papers..."
+                placeholder="Search PhysioLink"
                 className="w-full bg-slate-100/80 hover:bg-slate-100 focus:bg-white text-xs text-slate-800 placeholder-slate-400 pl-9 pr-3 py-2 rounded-lg border border-transparent focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all"
               />
             </div>
@@ -136,17 +111,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Opportunities</span>
             </button>
 
-            <button
-              onClick={() => onSelectTab('research')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                currentTab === 'research'
-                  ? 'text-blue-700 bg-blue-50/80 font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Research Hub</span>
-            </button>
 
             <button
               onClick={() => onSelectTab('profile')}
@@ -183,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Post Clinical Case</span>
+              <span className="hidden sm:inline">Post</span>
               <span className="sm:hidden">Post</span>
             </button>
 
@@ -193,27 +157,11 @@ export const Header: React.FC<HeaderProps> = ({
               className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
               title={`View ${currentUser.name}'s profile`}
             >
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm"
-                referrerPolicy="no-referrer"
-              />
+              <Avatar src={currentUser.avatar} name={currentUser.name} className="w-9 h-9 rounded-full border-2 border-white shadow-sm" />
               {currentUser.verifiedStatus === 'verified' && (
                 <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 bg-white rounded-full absolute -bottom-0.5 -right-0.5" />
               )}
             </button>
-
-            {/* Quick Sign Out / Auth Portal */}
-            {onSignOut && (
-              <button
-                onClick={onSignOut}
-                className="flex p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            )}
           </div>
 
         </div>

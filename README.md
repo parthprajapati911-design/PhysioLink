@@ -49,23 +49,33 @@ git push -u origin main
 |---|---|
 | `DATABASE_URL` | the Supabase Session pooler string from step 1 |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your admin login (password 10+ characters) |
-| `DEMO_PASSWORD` | optional – lets you sign in as the sample users |
-| `SEED_DEMO_DATA` | `true` for sample content, `false` for an empty real launch |
+| `SUPABASE_URL` | your Supabase **Project URL** (Project Settings → API), e.g. `https://abcd1234.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | the **service_role** (or **secret**) key from the same page. Keep it private. Photos are saved in a bucket called `physiolink-images`, created automatically on the first upload |
+| `GOOGLE_CLIENT_ID` | optional – turns on **Continue with Google** (see step 5) |
+| `SEED_DEMO_DATA` | keep `false` – the app starts completely empty |
+| `PURGE_DEMO_DATA` | keep `false`. Set `true` for ONE deploy to delete old sample users/posts/jobs already in your database, then set it back |
 | `JWT_SECRET` | generated automatically |
 
 3. Click **Deploy**. When it finishes open your `https://physiolink.onrender.com` URL.
 
 > Render's free web service sleeps after ~15 minutes of no traffic and takes ~30–60 s to wake up. The paid "Starter" plan stays awake.
 
+## 5. Turn on Google sign-in (optional)
+1. https://console.cloud.google.com → create a project → **APIs & Services → OAuth consent screen** (External, fill the app name and your email).
+2. **Credentials → Create credentials → OAuth client ID → Web application**.
+3. Under **Authorized JavaScript origins** add your site (e.g. `https://physiolink.onrender.com`, and `http://localhost:3000` for local testing). No redirect URI is needed.
+4. Copy the **Client ID** into Render as `GOOGLE_CLIENT_ID` (and into `.env` locally) and redeploy. The Google button then appears on the welcome page.
+
 ## How it works
-- **Accounts:** email + password (bcrypt hashed). Login uses a secure httpOnly cookie. Login/sign-up is rate-limited.
-- **Verification:** every new account starts as *pending*. The admin opens the **Admin** tab and approves/rejects; only then does the account get the verified badge.
-- **Data saved in the database:** profiles, posts, likes, bookmarks, comments, connections, messages (refresh every 15 s), job applications, verification requests.
-- **Admin:** set by `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Admin can also publish jobs through `POST /api/opportunities` (no screen for it yet).
+- **Sign up:** name + email + password, or Google. Accounts start completely blank.
+- **Profile tag:** each member picks **Academician / Clinician / Student** in *Edit profile* (not at sign-up).
+- **Posts:** a photo and/or a caption plus one tag (Case, Achievement, Research, Event, Update). Photos are shrunk in the browser and saved in Supabase Storage; the database keeps only the photo link.
+- **Accounts:** passwords are bcrypt hashed; login uses a secure httpOnly cookie; login/sign-up is rate-limited. Google tokens are verified on the server.
+- **Data saved in the database:** profiles, posts (with photo links), likes, bookmarks, comments, connections, messages (refresh every 15 s), job applications.
+- **Admin:** set by `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Admin can publish jobs through `POST /api/opportunities` (no screen for it yet). The verification queue is empty because sign-up no longer collects registration numbers.
 - Tables are locked from Supabase's public API (Row Level Security on, no policies) – only this backend can read or write.
 
 ## Not built yet (good next steps)
 - Password reset and email verification (needs an email service such as Resend/SMTP)
-- Uploading certificates / profile photos (Supabase Storage)
 - Viewing other members' full profiles, search, pagination, real-time chat
 - A screen for admins to post jobs

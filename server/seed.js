@@ -48,6 +48,14 @@ function ago(text, fallbackHours = 1) {
   return new Date(Date.now() - n * ms);
 }
 
+/** One-off cleanup: set PURGE_DEMO_DATA=true to delete all sample users, posts and jobs (real members are kept). */
+export async function purgeDemoData() {
+  if (process.env.PURGE_DEMO_DATA !== 'true') return;
+  const u = await query('delete from users where is_demo');
+  const o = await query('delete from opportunities where created_by is null');
+  console.log(`Removed sample data: ${u.rowCount} users (with their posts/messages), ${o.rowCount} jobs. You can now unset PURGE_DEMO_DATA.`);
+}
+
 /** Insert sample content once, when SEED_DEMO_DATA=true. */
 export async function seedDemoData() {
   if (process.env.SEED_DEMO_DATA !== 'true') return;
