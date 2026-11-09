@@ -3,6 +3,7 @@ import { ImagePlus } from 'lucide-react';
 import type { Post, UserProfile } from '../types';
 import { Avatar } from './Avatar';
 import { PostCard } from './PostCard';
+import { WelcomeCard } from './WelcomeCard';
 import { profileTagLabel, tagLabel } from '../imageUtil';
 
 interface FeedViewProps {
@@ -13,16 +14,22 @@ interface FeedViewProps {
   onAddComment: (postId: string, text: string) => void;
   onDeletePost: (postId: string) => void;
   onOpenCreateModal: () => void;
-  onViewProfile: () => void;
+  onViewProfile: (userId: string) => void;
+  onEditProfile: () => void;
+  onVerifyPhone: () => void;
 }
 
-const FILTERS = ['all', 'case', 'achievement', 'research', 'event', 'update'] as const;
+const FILTERS = ['all', 'case', 'achievement', 'research', 'event', 'update', 'saved'] as const;
 
 export const FeedView: React.FC<FeedViewProps> = ({
-  posts, currentUser, onLikePost, onBookmarkPost, onAddComment, onDeletePost, onOpenCreateModal, onViewProfile,
+  posts, currentUser, onLikePost, onBookmarkPost, onAddComment, onDeletePost, onOpenCreateModal, onViewProfile, onEditProfile, onVerifyPhone,
 }) => {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
-  const visible = filter === 'all' ? posts : posts.filter((p) => tagLabel(p.type).toLowerCase() === filter);
+  const visible =
+    filter === 'all' ? posts
+    : filter === 'saved' ? posts.filter((p) => p.isBookmarked)
+    : posts.filter((p) => tagLabel(p.type).toLowerCase() === filter);
+  const myPostsCount = posts.filter((p) => p.authorId === currentUser.id).length;
   const myTag = profileTagLabel(currentUser.accountType);
 
   return (
@@ -32,10 +39,10 @@ export const FeedView: React.FC<FeedViewProps> = ({
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-24">
           <div className="h-16 bg-gradient-to-r from-blue-700 to-teal-600" />
           <div className="px-4 pb-4 -mt-8 text-center">
-            <button onClick={onViewProfile} className="cursor-pointer">
+            <button onClick={() => onViewProfile(currentUser.id)} className="cursor-pointer">
               <Avatar src={currentUser.avatar} name={currentUser.name} className="w-16 h-16 rounded-full border-4 border-white shadow text-xl mx-auto" />
             </button>
-            <button onClick={onViewProfile} className="mt-2 text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer block w-full truncate">
+            <button onClick={() => onViewProfile(currentUser.id)} className="mt-2 text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer block w-full truncate">
               {currentUser.name}
             </button>
             {myTag && <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{myTag}</span>}
@@ -45,6 +52,8 @@ export const FeedView: React.FC<FeedViewProps> = ({
       </aside>
 
       <div className="space-y-4 min-w-0">
+        <WelcomeCard user={currentUser} postsCount={myPostsCount} onEditProfile={onEditProfile} onCreatePost={onOpenCreateModal} onVerifyPhone={onVerifyPhone} />
+
         {/* Start a post */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
           <Avatar src={currentUser.avatar} name={currentUser.name} className="w-11 h-11 rounded-full" />
@@ -70,7 +79,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
                   filter === f ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
                 }`}
               >
-                {f === 'all' ? 'All' : tagLabel(f)}
+                {f === 'all' ? 'All' : f === 'saved' ? 'Saved' : tagLabel(f)}
               </button>
             ))}
           </div>
@@ -78,7 +87,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
 
         {visible.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
-            {posts.length === 0 ? 'No posts yet. Be the first to post.' : 'No posts with this tag.'}
+            {posts.length === 0 ? 'No posts yet. Be the first to post.' : filter === 'saved' ? 'You have not saved any posts yet.' : 'No posts with this tag.'}
           </div>
         ) : (
           visible.map((post) => (
@@ -90,6 +99,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
               onBookmark={onBookmarkPost}
               onAddComment={onAddComment}
               onDelete={onDeletePost}
+              onViewProfile={onViewProfile}
             />
           ))
         )}

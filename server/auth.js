@@ -42,8 +42,11 @@ export const requireAuth = ah(async (req, _res, next) => {
   } catch {
     throw new HttpError(401, 'Session expired. Please sign in again.');
   }
-  const { rows } = await query('select id, role, account_type from users where id = $1', [payload.sub]);
+  const { rows } = await query('select id, role, account_type, password_changed_at from users where id = $1', [payload.sub]);
   if (!rows[0]) throw new HttpError(401, 'Account not found.');
+  // A password reset signs out every older session.
+  const changed = rows[0].password_changed_at ? Math.floor(new Date(rows[0].password_changed_at).getTime() / 1000) : 0;
+  if (changed && (payload.iat || 0) < changed) throw new HttpError(401, 'Your password was changed. Please sign in again.');
   req.user = { id: rows[0].id, role: rows[0].role, accountType: rows[0].account_type };
   next();
 });

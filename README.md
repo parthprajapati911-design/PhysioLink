@@ -51,6 +51,8 @@ git push -u origin main
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your admin login (password 10+ characters) |
 | `SUPABASE_URL` | your Supabase **Project URL** (Project Settings → API), e.g. `https://abcd1234.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | the **service_role** (or **secret**) key from the same page. Keep it private. Photos are saved in a bucket called `physiolink-images`, created automatically on the first upload |
+| `FAST2SMS_API_KEY` | optional – sends the SMS codes for mobile verification and password reset (step 6) |
+| `SMS_PROVIDER` | leave empty. Set to `console` only for testing: no SMS is sent and the code appears in the Render **Logs** |
 | `GOOGLE_CLIENT_ID` | optional – turns on **Continue with Google** (see step 5) |
 | `SEED_DEMO_DATA` | keep `false` – the app starts completely empty |
 | `PURGE_DEMO_DATA` | keep `false`. Set `true` for ONE deploy to delete old sample users/posts/jobs already in your database, then set it back |
@@ -66,13 +68,25 @@ git push -u origin main
 3. Under **Authorized JavaScript origins** add your site (e.g. `https://physiolink.onrender.com`, and `http://localhost:3000` for local testing). No redirect URI is needed.
 4. Copy the **Client ID** into Render as `GOOGLE_CLIENT_ID` (and into `.env` locally) and redeploy. The Google button then appears on the welcome page.
 
+## 6. Mobile verification and password reset by SMS (optional)
+1. Create an account at https://www.fast2sms.com and open **Dev API** to copy your **API key**. Add some credit to the wallet (check their current pricing).
+2. In Render add `FAST2SMS_API_KEY` = your key and redeploy.
+3. Members add their number in **Profile → Account → Add & verify**. Later, on the login page, **Forgot password?** texts them a 6-digit code to set a new password.
+
+Codes expire after 10 minutes, allow 5 wrong tries, and can be re-sent after 60 seconds (max 5 per hour per number). Only Indian 10-digit mobile numbers are supported. Until a key is added, these screens show "not available yet".
+To try everything before paying for SMS, temporarily set `SMS_PROVIDER` = `console` and read the code in Render → **Logs** (remove it afterwards).
+
 ## How it works
-- **Sign up:** name + email + password, or Google. Accounts start completely blank.
-- **Profile tag:** each member picks **Academician / Clinician / Student** in *Edit profile* (not at sign-up).
-- **Posts:** a photo and/or a caption plus one tag (Case, Achievement, Research, Event, Update). Photos are shrunk in the browser and saved in Supabase Storage; the database keeps only the photo link.
+- **Sign up:** name + email + password, or Google. Accounts start completely blank, and a welcome card guides new members through setting up their profile.
+- **Profile:** photo, cover photo, tag (**Academician / Clinician / Student**), headline, workplace, location, about, experience, education, licenses & certifications, skills. Tap any name or photo to open that person's profile, where you can **Connect** or **Message** them.
+- **Search:** the search box in the top bar finds people by name, headline, workplace or city.
+- **Posts:** a photo and/or a caption plus one tag (Case, Achievement, Research, Event, Update). Filter the feed by tag, or by **Saved** posts. You can delete your own posts.
+- **Opportunities:** any member can post a job, internship, fellowship or faculty role and see who applied (name, email, phone, message). Applicants can apply with an optional note.
+- **Network & messages:** connection requests, accept/ignore, and one-to-one chat. New activity appears automatically (the app refreshes in the background).
+- **Photos:** shrunk in the browser and saved in Supabase Storage; the database keeps only the link.
 - **Accounts:** passwords are bcrypt hashed; login uses a secure httpOnly cookie; login/sign-up is rate-limited. Google tokens are verified on the server.
-- **Data saved in the database:** profiles, posts (with photo links), likes, bookmarks, comments, connections, messages (refresh every 15 s), job applications.
-- **Admin:** set by `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Admin can publish jobs through `POST /api/opportunities` (no screen for it yet). The verification queue is empty because sign-up no longer collects registration numbers.
+- **Forgot password:** a member who has verified a mobile number can reset their password with an SMS code. Resetting also signs out older logins. Members without a verified number cannot reset by themselves.
+- **Admin:** set by `ADMIN_EMAIL`/`ADMIN_PASSWORD`. The verification queue stays empty because sign-up does not collect registration numbers.
 - Tables are locked from Supabase's public API (Row Level Security on, no policies) – only this backend can read or write.
 
 ## Not built yet (good next steps)

@@ -98,6 +98,10 @@ create table if not exists applications (
   primary key (opportunity_id, user_id)
 );
 
+-- Cover note + phone shared with the poster when someone applies.
+alter table applications add column if not exists note  text not null default '';
+alter table applications add column if not exists phone text not null default '';
+
 create table if not exists verifications (
   id                  text primary key,
   user_id             text not null references users(id) on delete cascade,
@@ -112,6 +116,25 @@ create table if not exists verifications (
 );
 create index if not exists verifications_status_idx on verifications (status, created_at desc);
 
+-- Mobile number (only ever stored once verified) and password-change time (signs out old logins).
+alter table users add column if not exists phone              text;
+alter table users add column if not exists phone_verified_at  timestamptz;
+alter table users add column if not exists password_changed_at timestamptz;
+create unique index if not exists users_phone_key on users(phone) where phone is not null;
+
+-- One-time codes sent by SMS (stored hashed, short-lived).
+create table if not exists otp_codes (
+  id         text primary key,
+  phone      text not null,
+  purpose    text not null,
+  user_id    text references users(id) on delete cascade,
+  code_hash  text not null,
+  attempts   int  not null default 0,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+create index if not exists otp_codes_phone_idx on otp_codes(phone, created_at desc);
+
 -- Lock the tables from Supabase's public REST API (anon key).
 -- Only this backend (which connects directly) can read/write them.
 alter table users          enable row level security;
@@ -124,3 +147,4 @@ alter table messages       enable row level security;
 alter table opportunities  enable row level security;
 alter table applications   enable row level security;
 alter table verifications  enable row level security;
+alter table otp_codes      enable row level security;

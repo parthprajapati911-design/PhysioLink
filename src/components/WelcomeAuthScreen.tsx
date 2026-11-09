@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LOGO_URL, BRAND_NAME, TAGLINE } from '../data/brand';
+import { LOGO_FULL_URL, BRAND_NAME, TAGLINE } from '../data/brand';
 import { api, errorMessage } from '../api';
 import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
@@ -7,9 +7,10 @@ interface WelcomeAuthScreenProps {
   onLogin: (email: string, password: string) => Promise<string | null>;
   onSignUp: (name: string, email: string, password: string) => Promise<string | null>;
   onGoogle: (credential: string) => Promise<string | null>;
+  onResetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
 }
 
-type Mode = 'login' | 'signup';
+type Mode = 'login' | 'signup' | 'forgot';
 
 // Google's sign-in script (loaded once, only when Google sign-in is configured).
 declare global {
@@ -36,7 +37,96 @@ function loadGoogleScript(): Promise<void> {
 const inputCls =
   'w-full text-sm text-slate-900 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all';
 
-export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, onSignUp, onGoogle }) => {
+// Forgot password: 1) mobile number  2) SMS code + new password.
+const ForgotPassword: React.FC<{
+  onBack: () => void;
+  onReset: (phone: string, code: string, password: string) => Promise<string | null>;
+}> = ({ onBack, onReset }) => {
+  const [step, setStep] = useState<'phone' | 'reset'>('phone');
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wait, setWait] = useState(0);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  const sendCode = async () => {
+    setBusy(true); setError(null);
+    try {
+      const r = await api.forgotPassword(phone);
+      setWait(r.resendIn); setStep('reset');
+    } catch (e) { setError(errorMessage(e)); }
+    setBusy(false);
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) return setError('Password must be at least 8 characters.');
+    setBusy(true); setError(null);
+    const err = await onReset(phone, code, password);
+    if (err) { setError(err); setBusy(false); }
+  };
+
+  return (
+    <div className="p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-slate-900 font-display">Reset your password</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          {step === 'phone'
+            ? 'Enter the mobile number you verified on your PhysioLink profile. We will text you a code.'
+            : <>We sent a 6-digit code to <b>+91 {phone}</b>. If you do not receive it, that number is not verified on any account.</>}
+        </p>
+      </div>
+      {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-3 py-2 text-xs font-medium">{error}</div>}
+
+      {step === 'phone' ? (
+        <>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-600 bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5">+91</span>
+            <input
+              className={inputCls} type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="10-digit mobile number" aria-label="Mobile number"
+              value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            />
+          </div>
+          <button onClick={sendCode} disabled={busy || phone.length !== 10}
+            className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl text-sm cursor-pointer">
+            Send code
+          </button>
+        </>
+      ) : (
+        <form onSubmit={submit} className="space-y-3.5">
+          <input
+            className={`${inputCls} text-center tracking-[0.5em] text-lg font-semibold`} inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+            placeholder="------" aria-label="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus
+          />
+          <input
+            className={inputCls} type="password" autoComplete="new-password" placeholder="New password (8+ characters)" aria-label="New password"
+            value={password} onChange={(e) => setPassword(e.target.value)}
+          />
+          <button type="submit" disabled={busy || code.length !== 6 || !password}
+            className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl text-sm cursor-pointer">
+            Reset password and log in
+          </button>
+          <div className="flex items-center justify-between text-xs">
+            <button type="button" onClick={() => { setStep('phone'); setCode(''); setError(null); }} className="font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">Change number</button>
+            <button type="button" onClick={sendCode} disabled={wait > 0 || busy} className="font-semibold text-blue-700 disabled:text-slate-400 cursor-pointer disabled:cursor-not-allowed">
+              {wait > 0 ? `Resend in ${wait}s` : 'Resend code'}
+            </button>
+          </div>
+        </form>
+      )}
+      <button onClick={onBack} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">Back to log in</button>
+    </div>
+  );
+};
+
+export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, onSignUp, onGoogle, onResetPassword }) => {
   const [mode, setMode] = useState<Mode>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -58,7 +148,7 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
 
   // Draw Google's official button.
   useEffect(() => {
-    if (!googleClientId) return;
+    if (!googleClientId || mode === 'forgot') return;
     let cancelled = false;
     loadGoogleScript()
       .then(() => {
@@ -82,7 +172,7 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
       })
       .catch((e) => !cancelled && setError(errorMessage(e)));
     return () => { cancelled = true; };
-  }, [googleClientId]);
+  }, [googleClientId, mode]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,15 +193,23 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
   const switchMode = (m: Mode) => { setMode(m); setError(null); };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-        {/* Name only */}
-        <div className="flex items-center gap-3 mb-8">
-          <img src={LOGO_URL} alt="" className="w-12 h-12 rounded-xl object-cover shadow border border-teal-500/30" />
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-display">{BRAND_NAME}</h1>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white via-blue-50/60 to-teal-50/60">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        {/* Logo + welcome message */}
+        <img src={LOGO_FULL_URL} alt={`${BRAND_NAME} – ${TAGLINE}`} className="w-full max-w-md sm:max-w-lg h-auto" />
+        <div className="text-center mt-5 mb-7 max-w-md">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display tracking-tight">
+            Welcome to {BRAND_NAME}
+          </h1>
+          <p className="text-sm sm:text-base text-slate-600 mt-2">
+            Connect with physiotherapists, share your cases and achievements, and grow together.
+          </p>
         </div>
 
-        <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl shadow-blue-900/10 border border-slate-200 overflow-hidden">
+          {mode === 'forgot' ? (
+            <ForgotPassword onBack={() => switchMode('login')} onReset={onResetPassword} />
+          ) : (<>
           <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 text-sm font-semibold text-center">
             {(['signup', 'login'] as Mode[]).map((m) => (
               <button
@@ -175,6 +273,14 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
                 </button>
               </div>
 
+              {mode === 'login' && (
+                <div className="text-right -mt-1">
+                  <button type="button" onClick={() => switchMode('forgot')} className="text-xs font-semibold text-blue-700 hover:underline cursor-pointer">
+                    Forgot password?
+                  </button>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={submitting}
@@ -207,11 +313,12 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
               )}
             </div>
           </div>
+          </>)}
         </div>
       </main>
 
-      <footer className="border-t border-slate-800 py-4 px-6 text-center text-xs text-slate-400">
-        <span className="font-semibold text-slate-200">{BRAND_NAME}</span> — {TAGLINE}
+      <footer className="border-t border-slate-200 bg-white/70 py-4 px-6 text-center text-xs text-slate-500">
+        <span className="font-semibold text-slate-800">{BRAND_NAME}</span> — {TAGLINE}
       </footer>
     </div>
   );

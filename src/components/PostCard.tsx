@@ -11,9 +11,10 @@ interface PostCardProps {
   onBookmark: (postId: string) => void;
   onAddComment: (postId: string, text: string) => void;
   onDelete: (postId: string) => void;
+  onViewProfile?: (userId: string) => void;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onBookmark, onAddComment, onDelete }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, onBookmark, onAddComment, onDelete, onViewProfile }) => {
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState('');
   const mine = post.authorId === currentUser.id;
@@ -29,10 +30,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onLike, o
   return (
     <article className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 flex items-start gap-3">
-        <Avatar src={post.authorAvatar} name={post.authorName} className="w-11 h-11 rounded-full" />
+        <button onClick={() => onViewProfile?.(post.authorId)} aria-label={`View ${post.authorName}'s profile`} className="cursor-pointer shrink-0">
+          <Avatar src={post.authorAvatar} name={post.authorName} className="w-11 h-11 rounded-full" />
+        </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-bold text-slate-900">{post.authorName}</span>
+            <button onClick={() => onViewProfile?.(post.authorId)} className="text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer">{post.authorName}</button>
             {post.authorVerified && <ShieldCheck className="w-3.5 h-3.5 text-teal-600" aria-label="Verified" />}
             <span className="text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
               {tagLabel(post.type)}

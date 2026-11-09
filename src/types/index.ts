@@ -112,6 +112,8 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  phoneVerified?: boolean; // own account only
+  phoneMasked?: string; // own account only, e.g. +91 ••••••3210
   headline: string;
   avatar: string;
   coverImage: string;
@@ -165,6 +167,31 @@ export interface Opportunity {
   applicantsCount: number;
   postedDate: string;
   hasApplied: boolean;
+  createdBy: string | null;
+}
+
+export interface Applicant {
+  userId: string;
+  name: string;
+  headline: string;
+  avatar: string;
+  email: string;
+  phone: string;
+  note: string;
+  appliedAt: string;
+}
+
+export interface NewOpportunity {
+  title: string;
+  organization: string;
+  location: string;
+  type: Opportunity['type'];
+  locationType: Opportunity['locationType'];
+  specialization: string;
+  stipendOrSalary: string;
+  experienceRequired: string;
+  description: string;
+  requirements: string[];
 }
 
 export interface Connection {

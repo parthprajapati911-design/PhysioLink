@@ -29,6 +29,12 @@ services:
       # Google "Continue with Google" button (optional, see README step 5)
       - key: GOOGLE_CLIENT_ID
         sync: false
+      # Mobile number verification + password reset by SMS (India). Fast2SMS API key, see README step 6.
+      - key: FAST2SMS_API_KEY
+        sync: false
+      # Testing only: set to "console" to skip real SMS; the code then appears in the Render Logs.
+      - key: SMS_PROVIDER
+        sync: false
       # Launch with an empty app: no sample people, posts or jobs.
       - key: SEED_DEMO_DATA
         value: "false"

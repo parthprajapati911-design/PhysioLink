@@ -18,6 +18,7 @@ import socialRoutes from './routes/social.js';
 import adminRoutes from './routes/admin.js';
 import { ensureAdmin, seedDemoData, purgeDemoData } from './seed.js';
 import { uploadRouter } from './routes/images.js';
+import phoneRoutes from './routes/phone.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '..', 'dist');
@@ -63,6 +64,8 @@ app.use('/api', apiLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/signup', authLimiter);
 app.use('/api/auth/google', authLimiter);
+app.use('/api/auth/forgot', authLimiter);
+app.use('/api/auth/reset', authLimiter);
 app.use('/api/auth', authRoutes);
 
 // Everything below needs a signed-in user.
@@ -74,6 +77,7 @@ const api = express.Router();
 api.use(requireAuth);
 api.use('/posts', postRoutes);
 api.use('/images', uploadRouter);
+api.use(phoneRoutes);
 api.use(socialRoutes);
 api.use(adminRoutes);
 app.use('/api', api);

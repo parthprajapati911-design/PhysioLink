@@ -1,5 +1,5 @@
 import type {
-  UserProfile, Post, PostComment, Opportunity, Connection,
+  UserProfile, Post, PostComment, Opportunity, Applicant, NewOpportunity, Connection,
   VerificationRequest, Conversation, ChatMessage,
 } from './types';
 
@@ -53,6 +53,15 @@ export const api = {
     request<{ ok: true }>('POST', '/api/auth/login', { email, password }),
   signup: (name: string, email: string, password: string) =>
     request<{ ok: true }>('POST', '/api/auth/signup', { name, email, password }),
+  forgotPassword: (phone: string) =>
+    request<{ ok: true; resendIn: number }>('POST', '/api/auth/forgot', { phone }),
+  resetPassword: (phone: string, code: string, password: string) =>
+    request<{ ok: true }>('POST', '/api/auth/reset', { phone, code, password }),
+  sendPhoneCode: (phone: string) =>
+    request<{ ok: true; resendIn: number }>('POST', '/api/me/phone/send', { phone }),
+  verifyPhone: (phone: string, code: string) =>
+    request<{ ok: true; phoneMasked: string }>('POST', '/api/me/phone/verify', { phone, code }),
+  removePhone: () => request<{ ok: true }>('DELETE', '/api/me/phone'),
   googleSignIn: (credential: string) =>
     request<{ ok: true }>('POST', '/api/auth/google', { credential }),
   logout: () => request<{ ok: true }>('POST', '/api/auth/logout'),
@@ -90,8 +99,12 @@ export const api = {
     request<{ ok: true }>('POST', `/api/conversations/${encodeURIComponent(userId)}/read`),
 
   // opportunities & admin
-  apply: (opportunityId: string) =>
-    request<{ ok: true }>('POST', `/api/opportunities/${encodeURIComponent(opportunityId)}/apply`),
+  apply: (opportunityId: string, note: string, phone: string) =>
+    request<{ ok: true }>('POST', `/api/opportunities/${encodeURIComponent(opportunityId)}/apply`, { note, phone }),
+  createOpportunity: (opp: NewOpportunity) => request<{ id: string }>('POST', '/api/opportunities', opp),
+  deleteOpportunity: (id: string) => request<{ ok: true }>('DELETE', `/api/opportunities/${encodeURIComponent(id)}`),
+  applicants: (id: string) =>
+    request<{ applicants: Applicant[] }>('GET', `/api/opportunities/${encodeURIComponent(id)}/applicants`),
   approveVerification: (id: string) =>
     request<{ userId: string }>('POST', `/api/admin/verifications/${encodeURIComponent(id)}/approve`),
   rejectVerification: (id: string) =>

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { X, Camera, Plus, Trash2, Loader2 } from 'lucide-react';
-import type { UserProfile, Education } from '../types';
+import type { UserProfile, Education, Experience, Certification } from '../types';
 import { api, errorMessage } from '../api';
 import { Avatar } from './Avatar';
 import { PROFILE_TAGS, shrinkImage } from '../imageUtil';
@@ -27,16 +27,17 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
 
   const set = <K extends keyof UserProfile>(key: K, value: UserProfile[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const pickPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const coverRef = useRef<HTMLInputElement>(null);
+  const pickImage = (field: 'avatar' | 'coverImage') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setUploading(true);
     setError(null);
     try {
-      const dataUrl = await shrinkImage(file, 600, 0.85);
+      const dataUrl = await shrinkImage(file, field === 'avatar' ? 600 : 1600, 0.85);
       const { url } = await api.uploadImage(dataUrl);
-      set('avatar', url);
+      set(field, url);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -50,6 +51,12 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
     set('education', education.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const addEdu = () =>
     set('education', [...education, { id: `edu_${Date.now()}`, school: '', degree: '', startYear: '', endYear: '' }]);
+  const experiences = form.experiences || [];
+  const certs = form.certifications || [];
+  const updateExp = (id: string, patch: Partial<Experience>) => set('experiences', experiences.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const addExp = () => set('experiences', [...experiences, { id: `exp_${Date.now()}`, title: '', company: '', employmentType: 'Full-time', location: '', startDate: '', endDate: '', isCurrent: false, description: '' }]);
+  const updateCert = (id: string, patch: Partial<Certification>) => set('certifications', certs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  const addCert = () => set('certifications', [...certs, { id: `cert_${Date.now()}`, title: '', issuer: '', issueDate: '' }]);
   const addSkill = () => {
     const name = skillInput.trim();
     if (name && !skills.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
@@ -61,7 +68,13 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return setError('Name cannot be empty.');
-    onSave({ ...form, name: form.name.trim(), education: education.filter((x) => x.school.trim()) });
+    onSave({
+      ...form,
+      name: form.name.trim(),
+      education: education.filter((x) => x.school.trim()),
+      experiences: experiences.filter((x) => x.title.trim() || x.company.trim()).map((x) => (x.isCurrent ? { ...x, endDate: '' } : x)),
+      certifications: certs.filter((x) => x.title.trim()),
+    });
     onClose();
   };
 
@@ -93,7 +106,20 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
               {form.avatar && (
                 <button type="button" onClick={() => set('avatar', '')} className="text-xs font-semibold text-slate-500 hover:text-rose-600 px-2 py-2 cursor-pointer">Remove</button>
               )}
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickPhoto} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickImage('avatar')} className="hidden" />
+            </div>
+          </div>
+
+          {/* Cover photo */}
+          <div>
+            <Label>Cover photo</Label>
+            <div className="relative h-24 rounded-xl overflow-hidden border border-slate-200 bg-gradient-to-r from-blue-700 via-blue-600 to-teal-500">
+              {form.coverImage && <img src={form.coverImage} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
+              <div className="absolute bottom-2 right-2 flex gap-2">
+                <button type="button" onClick={() => coverRef.current?.click()} disabled={uploading} className="text-xs font-semibold bg-white/95 hover:bg-white px-3 py-1.5 rounded-full cursor-pointer disabled:opacity-60">{form.coverImage ? 'Change' : 'Add cover'}</button>
+                {form.coverImage && <button type="button" onClick={() => set('coverImage', '')} className="text-xs font-semibold bg-white/95 hover:bg-white text-rose-600 px-3 py-1.5 rounded-full cursor-pointer">Remove</button>}
+              </div>
+              <input ref={coverRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickImage('coverImage')} className="hidden" />
             </div>
           </div>
 
@@ -150,6 +176,31 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
             Open to opportunities
           </label>
 
+          {/* Experience */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Experience</Label>
+              <button type="button" onClick={addExp} className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline cursor-pointer"><Plus className="w-3.5 h-3.5" />Add</button>
+            </div>
+            <div className="space-y-3">
+              {experiences.map((x) => (
+                <div key={x.id} className="border border-slate-200 rounded-xl p-3 space-y-2 relative">
+                  <button type="button" onClick={() => set('experiences', experiences.filter((y) => y.id !== x.id))} aria-label="Remove experience" className="absolute top-2 right-2 p-1 text-slate-400 hover:text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  <input className={`${field} pr-9`} placeholder="Title (e.g. Physiotherapist)" value={x.title} onChange={(ev) => updateExp(x.id, { title: ev.target.value })} maxLength={150} />
+                  <input className={field} placeholder="Clinic / hospital / college" value={x.company} onChange={(ev) => updateExp(x.id, { company: ev.target.value })} maxLength={150} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={field} placeholder="Start (e.g. Jun 2022)" value={x.startDate} onChange={(ev) => updateExp(x.id, { startDate: ev.target.value })} maxLength={30} />
+                    <input className={field} placeholder="End" value={x.isCurrent ? 'Present' : x.endDate} disabled={x.isCurrent} onChange={(ev) => updateExp(x.id, { endDate: ev.target.value })} maxLength={30} />
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <input type="checkbox" checked={x.isCurrent} onChange={(ev) => updateExp(x.id, { isCurrent: ev.target.checked })} className="w-4 h-4 accent-blue-700" /> I currently work here
+                  </label>
+                  <textarea className={`${field} resize-none`} rows={2} placeholder="Description (optional)" value={x.description} onChange={(ev) => updateExp(x.id, { description: ev.target.value })} maxLength={1000} />
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Education */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -165,6 +216,26 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
                   <div className="grid grid-cols-2 gap-2">
                     <input className={field} placeholder="Start year" inputMode="numeric" value={e.startYear} onChange={(ev) => updateEdu(e.id, { startYear: ev.target.value })} maxLength={4} />
                     <input className={field} placeholder="End year" inputMode="numeric" value={e.endYear} onChange={(ev) => updateEdu(e.id, { endYear: ev.target.value })} maxLength={4} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Certifications */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Licenses & certifications</Label>
+              <button type="button" onClick={addCert} className="flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline cursor-pointer"><Plus className="w-3.5 h-3.5" />Add</button>
+            </div>
+            <div className="space-y-3">
+              {certs.map((c) => (
+                <div key={c.id} className="border border-slate-200 rounded-xl p-3 space-y-2 relative">
+                  <button type="button" onClick={() => set('certifications', certs.filter((y) => y.id !== c.id))} aria-label="Remove certificate" className="absolute top-2 right-2 p-1 text-slate-400 hover:text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  <input className={`${field} pr-9`} placeholder="Name (e.g. Dry Needling Certification)" value={c.title} onChange={(ev) => updateCert(c.id, { title: ev.target.value })} maxLength={150} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className={field} placeholder="Issued by" value={c.issuer} onChange={(ev) => updateCert(c.id, { issuer: ev.target.value })} maxLength={150} />
+                    <input className={field} placeholder="Year" value={c.issueDate} onChange={(ev) => updateCert(c.id, { issueDate: ev.target.value })} maxLength={30} />
                   </div>
                 </div>
               ))}

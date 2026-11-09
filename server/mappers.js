@@ -1,5 +1,6 @@
 import { timeAgo } from './util.js';
 
+export const maskPhone = (e164) => `+91 ${'•'.repeat(6)}${String(e164).slice(-4)}`;
 const arr = (v) => (Array.isArray(v) ? v : []);
 
 // DB row -> UserProfile shape used by the React app.
@@ -28,6 +29,9 @@ export function toUser(row, { connectionsCount = 0, includeEmail = false } = {})
     clinicalRotations: arr(p.clinicalRotations),
     connectionsCount: Number(connectionsCount) || 0,
     followersCount: Number(p.followersCount) || 0,
+    // Mobile number details are only ever sent to the account owner.
+    phoneVerified: includeEmail ? !!row.phone : undefined,
+    phoneMasked: includeEmail && row.phone ? maskPhone(row.phone) : undefined,
   };
 }
 
@@ -95,6 +99,7 @@ export function toOpportunity(row) {
     applicantsCount: Number(row.base_applicants) + Number(row.applicants || 0),
     postedDate: timeAgo(row.created_at),
     hasApplied: !!row.has_applied,
+    createdBy: row.created_by || null,
   };
 }
 

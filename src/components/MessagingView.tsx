@@ -28,7 +28,7 @@ interface MessagingViewProps {
   currentUser: UserProfile;
   connections: Connection[];
   allUsers: Record<string, UserProfile>;
-  onViewProfile?: () => void;
+  onViewProfile?: (userId: string) => void;
   onMarkAsRead?: (conversationId: string) => void;
   onStartChat?: (userId: string, name: string, headline: string, avatar: string, verified: boolean) => void;
 }
@@ -334,7 +334,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
             <div className="flex items-center gap-2">
               {onViewProfile && (
                 <button
-                  onClick={onViewProfile}
+                  onClick={() => onViewProfile(activeConversation.participant.id)}
                   className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5 text-slate-500" />

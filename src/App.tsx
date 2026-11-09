@@ -4,6 +4,7 @@ import {
   UserProfile,
   Post,
   Opportunity,
+  NewOpportunity,
   Connection,
   VerificationRequest,
   Conversation,
@@ -23,6 +24,7 @@ import { FloatingMessagingWidget } from './components/FloatingMessagingWidget';
 import { OpportunitiesView } from './components/OpportunitiesView';
 import { AdminView } from './components/AdminView';
 import { CreatePostModal } from './components/CreatePostModal';
+import { PhoneVerifyModal } from './components/PhoneVerifyModal';
 import { EditProfileModal } from './components/EditProfileModal';
 import { ApplyModal } from './components/ApplyModal';
 type AuthStatus = 'loading' | 'out' | 'in';
@@ -46,6 +48,8 @@ export default function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [selectedOppForApply, setSelectedOppForApply] = useState<Opportunity | null>(null);
+  const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+  const [viewedUserId, setViewedUserId] = useState<string | null>(null);
 
   // Only used after sign-in (the app shows the login screen until data is loaded)
   const currentUser = users[currentUserId] as UserProfile;
@@ -97,6 +101,35 @@ export default function App() {
       }
     }, 15000);
     return () => clearInterval(timer);
+  }, [authStatus]);
+
+  // Quietly refresh people, posts, requests and jobs every 45 seconds and when you return to the tab,
+  // so new activity shows up without reloading the page.
+  useEffect(() => {
+    if (authStatus !== 'in') return;
+    let busy = false;
+    const sync = async () => {
+      if (busy || document.hidden) return;
+      busy = true;
+      try {
+        const data = await api.bootstrap();
+        setUsers(data.users);
+        setPosts(data.posts);
+        setConnections(data.connections);
+        setOpportunities(data.opportunities);
+        setVerifications(data.verifications);
+      } catch {
+        /* ignore temporary network errors */
+      } finally {
+        busy = false;
+      }
+    };
+    const timer = setInterval(sync, 45000);
+    document.addEventListener('visibilitychange', sync);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', sync);
+    };
   }, [authStatus]);
 
   // Run a server call; on failure show a message and re-sync with the server.
@@ -157,6 +190,16 @@ export default function App() {
       await api.signup(name, email, password);
       await refresh();
       setCurrentTab('profile');
+      return null;
+    } catch (e) {
+      return errorMessage(e);
+    }
+  };
+
+  const handleResetPassword = async (phone: string, code: string, password: string): Promise<string | null> => {
+    try {
+      await api.resetPassword(phone, code, password);
+      await refresh();
       return null;
     } catch (e) {
       return errorMessage(e);
@@ -375,7 +418,7 @@ export default function App() {
     run(api.requestConnection(connectionId));
   };
 
-  const handleApplyOpportunity = (opportunityId: string) => {
+  const handleApplyOpportunity = (opportunityId: string, note: string, phone: string) => {
     setOpportunities((prev) =>
       prev.map((o) =>
         o.id === opportunityId
@@ -383,7 +426,34 @@ export default function App() {
           : o
       )
     );
-    run(api.apply(opportunityId));
+    run(api.apply(opportunityId, note, phone));
+  };
+
+  // Returns the promise so the form can show an error and stay open if it fails.
+  const handleCreateOpportunity = (opp: NewOpportunity) =>
+    api.createOpportunity(opp).then(() => refresh());
+
+  const handleDeleteOpportunity = (id: string) => {
+    setOpportunities((prev) => prev.filter((o) => o.id !== id));
+    run(api.deleteOpportunity(id));
+  };
+
+  // ---------- Navigation ----------
+  const selectTab = (tab: ViewTab) => {
+    setViewedUserId(null);
+    setCurrentTab(tab);
+    window.scrollTo(0, 0);
+  };
+
+  const openProfile = (userId: string) => {
+    setViewedUserId(currentUser && userId === currentUser.id ? null : userId);
+    setCurrentTab('profile');
+    window.scrollTo(0, 0);
+  };
+
+  const handleMessageUser = (u: UserProfile) => {
+    handleOpenChatWithUser(u.id, u.name, u.headline, u.avatar, u.verifiedStatus === 'verified');
+    selectTab('messaging');
   };
 
   const reviewVerification = (reqId: string, status: 'approved' | 'rejected') => {
@@ -413,7 +483,7 @@ export default function App() {
   }
 
   if (authStatus === 'out' || !currentUser) {
-    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} onGoogle={handleGoogle} />;
+    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} onGoogle={handleGoogle} onResetPassword={handleResetPassword} />;
   }
 
   return (
@@ -431,6 +501,13 @@ export default function App() {
         onSave={handleSaveProfile}
       />
 
+      <PhoneVerifyModal
+        user={currentUser}
+        isOpen={isPhoneOpen}
+        onClose={() => setIsPhoneOpen(false)}
+        onChanged={() => { refresh().catch(() => undefined); }}
+      />
+
       <ApplyModal
         opportunity={selectedOppForApply}
         currentUser={currentUser}
@@ -442,9 +519,10 @@ export default function App() {
       <div className="flex-1 flex flex-col relative">
         <Header
           currentTab={currentTab}
-          onSelectTab={setCurrentTab}
+          onSelectTab={selectTab}
           currentUser={currentUser}
           allUsers={users}
+          onViewProfile={openProfile}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           unreadMessagesCount={totalUnreadMessages}
         />
@@ -459,23 +537,38 @@ export default function App() {
               onAddComment={handleAddComment}
               onDeletePost={handleDeletePost}
               onOpenCreateModal={() => setIsCreateModalOpen(true)}
-              onViewProfile={() => setCurrentTab('profile')}
+              onViewProfile={openProfile}
+              onEditProfile={() => { setViewedUserId(null); setCurrentTab('profile'); handleOpenEditProfile(); }}
+              onVerifyPhone={() => setIsPhoneOpen(true)}
             />
           )}
 
-          {currentTab === 'profile' && (
-            <ProfileView
-              user={currentUser}
-              posts={posts.filter((p) => p.authorId === currentUser.id)}
-              onEditProfile={handleOpenEditProfile}
-              onSignOut={handleSignOut}
-              onLikePost={handleLikePost}
-              onBookmarkPost={handleBookmarkPost}
-              onAddComment={handleAddComment}
-              onDeletePost={handleDeletePost}
-              onOpenCreateModal={() => setIsCreateModalOpen(true)}
-            />
-          )}
+          {currentTab === 'profile' && (() => {
+            const shown = (viewedUserId && users[viewedUserId]) || currentUser;
+            const isOwn = shown.id === currentUser.id;
+            return (
+              <ProfileView
+                key={shown.id}
+                user={shown}
+                currentUser={currentUser}
+                isOwn={isOwn}
+                posts={posts.filter((p) => p.authorId === shown.id)}
+                connectionStatus={connections.find((c) => c.id === shown.id)?.status}
+                onEditProfile={handleOpenEditProfile}
+                onOpenPhone={() => setIsPhoneOpen(true)}
+                onSignOut={handleSignOut}
+                onBack={() => selectTab('home')}
+                onConnect={handleConnectRequest}
+                onAcceptConnection={handleAcceptConnection}
+                onMessage={handleMessageUser}
+                onLikePost={handleLikePost}
+                onBookmarkPost={handleBookmarkPost}
+                onAddComment={handleAddComment}
+                onDeletePost={handleDeletePost}
+                onOpenCreateModal={() => setIsCreateModalOpen(true)}
+              />
+            );
+          })()}
 
           {currentTab === 'network' && (
             <NetworkView
@@ -484,7 +577,8 @@ export default function App() {
               onAcceptConnection={handleAcceptConnection}
               onIgnoreConnection={handleIgnoreConnection}
               onConnectRequest={handleConnectRequest}
-              onOpenChatWithUser={handleOpenChatWithUser}
+              onOpenChatWithUser={(...args) => { handleOpenChatWithUser(...args); selectTab('messaging'); }}
+              onViewProfile={openProfile}
             />
           )}
 
@@ -497,7 +591,7 @@ export default function App() {
               currentUser={currentUser}
               connections={connections}
               allUsers={users}
-              onViewProfile={() => setCurrentTab('profile')}
+              onViewProfile={openProfile}
               onMarkAsRead={handleMarkAsRead}
               onStartChat={handleOpenChatWithUser}
             />
@@ -508,6 +602,9 @@ export default function App() {
               opportunities={opportunities}
               currentUser={currentUser}
               onApply={(opp) => setSelectedOppForApply(opp)}
+              onCreate={handleCreateOpportunity}
+              onDelete={handleDeleteOpportunity}
+              onViewProfile={openProfile}
             />
           )}
 
@@ -534,7 +631,7 @@ export default function App() {
 
         <footer className="bg-white border-t border-slate-200 py-5 pb-20 md:pb-5 text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center gap-2 text-center flex-wrap">
-            <img src={LOGO_URL} alt="" className="w-5 h-5 rounded object-cover" />
+            <img src={LOGO_URL} alt="" className="w-6 h-6 object-contain" />
             <span className="font-bold text-slate-800">{BRAND_NAME}</span>
             <span>— {TAGLINE}</span>
           </div>
@@ -542,7 +639,7 @@ export default function App() {
 
         <MobileBottomNav
           currentTab={currentTab}
-          onSelectTab={setCurrentTab}
+          onSelectTab={selectTab}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           currentUser={currentUser}
           unreadMessagesCount={totalUnreadMessages}

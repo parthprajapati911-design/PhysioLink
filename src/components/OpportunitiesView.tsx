@@ -1,30 +1,29 @@
 import React, { useState } from 'react';
-import { Opportunity, UserProfile } from '../types';
-import { 
-  Briefcase, 
-  MapPin, 
-  Building2, 
-  Clock, 
-  CheckCircle2, 
-  Search, 
-  Filter, 
-  Send,
-  DollarSign,
-  GraduationCap,
-  Sparkles
-} from 'lucide-react';
+import { Opportunity, UserProfile, NewOpportunity } from '../types';
+import { CheckCircle2, Search, Send, Plus, Trash2, Users } from 'lucide-react';
+import { Avatar } from './Avatar';
+import { PostOpportunityModal } from './PostOpportunityModal';
+import { ApplicantsModal } from './ApplicantsModal';
 
 interface OpportunitiesViewProps {
   opportunities: Opportunity[];
   currentUser: UserProfile;
   onApply: (opportunity: Opportunity) => void;
+  onCreate: (opp: NewOpportunity) => Promise<unknown>;
+  onDelete: (id: string) => void;
+  onViewProfile: (userId: string) => void;
 }
 
 export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   opportunities,
   currentUser,
   onApply,
+  onCreate,
+  onDelete,
+  onViewProfile,
 }) => {
+  const [showPost, setShowPost] = useState(false);
+  const [viewingApplicants, setViewingApplicants] = useState<Opportunity | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
 
@@ -42,25 +41,21 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
       
-      {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-display">
-            Physiotherapy Career & Academic Opportunities
-          </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Clinical hospital roles, private sports practices, research fellowships, and student rotatory internships.
-          </p>
-        </div>
+      <PostOpportunityModal isOpen={showPost} onClose={() => setShowPost(false)} onSubmit={onCreate} />
+      <ApplicantsModal opportunity={viewingApplicants} onClose={() => setViewingApplicants(null)} onViewProfile={onViewProfile} />
 
-        <div className="flex items-center gap-2">
-          {currentUser.accountType === 'student' && (
-            <span className="text-xs font-semibold text-teal-800 bg-teal-50 border border-teal-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-              <GraduationCap className="w-4 h-4 text-teal-600" />
-              Showing Student Internships & Fellowships
-            </span>
-          )}
+      {/* Header */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-display">Opportunities</h1>
+          <p className="text-xs text-slate-500 mt-1">Jobs, internships, fellowships and faculty positions for physiotherapists.</p>
         </div>
+        <button
+          onClick={() => setShowPost(true)}
+          className="flex items-center justify-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-5 py-2.5 rounded-full cursor-pointer transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Post an opportunity
+        </button>
       </div>
 
       {/* Filter & Search Bar */}
@@ -70,7 +65,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search by job title, hospital, city, or specialization..."
+              placeholder="Search by title, organization, city or specialization"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-slate-50 text-xs border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 focus:border-blue-500 focus:outline-none"
@@ -124,18 +119,18 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
 
       {/* Opportunities List */}
       <div className="space-y-4">
+        {filteredOpps.length === 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
+            {opportunities.length === 0 ? 'No opportunities yet. Post the first one.' : 'No opportunities match your search.'}
+          </div>
+        )}
         {filteredOpps.map((opp) => (
           <div
             key={opp.id}
             className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm hover:border-slate-300 transition-all flex flex-col sm:flex-row sm:items-start justify-between gap-5"
           >
             <div className="flex items-start gap-4 flex-1">
-              <img
-                src={opp.logo}
-                alt={opp.organization}
-                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
-                referrerPolicy="no-referrer"
-              />
+              <Avatar src={opp.logo} name={opp.organization} className="w-12 h-12 rounded-xl border border-slate-200" />
               <div className="space-y-1.5 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base font-bold text-slate-900 font-display">
@@ -164,43 +159,53 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   {opp.description}
                 </p>
 
-                {/* Key Requirements List */}
-                <div className="pt-2">
+                {/* Requirements */}
+                {opp.requirements.length > 0 && <div className="pt-2">
                   <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-1">
-                    Key Clinical Requirements:
+                    Requirements
                   </span>
                   <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px] text-slate-600 list-disc list-inside">
                     {opp.requirements.map((req, idx) => (
-                      <li key={idx} className="truncate">{req}</li>
+                      <li key={idx}>{req}</li>
                     ))}
                   </ul>
-                </div>
+                </div>}
 
                 <div className="flex items-center gap-3 text-[11px] text-slate-400 pt-2">
                   <span>Posted {opp.postedDate}</span>
                   <span>·</span>
-                  <span>{opp.applicantsCount} applicants</span>
+                  <span>{opp.applicantsCount} {opp.applicantsCount === 1 ? 'applicant' : 'applicants'}</span>
                 </div>
               </div>
             </div>
 
-            {/* Apply Action Button */}
-            <div className="self-end sm:self-start shrink-0">
-              {opp.hasApplied ? (
-                <button
-                  disabled
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-bold border border-teal-200 cursor-default"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                  <span>Applied</span>
-                </button>
+            {/* Actions */}
+            <div className="self-end sm:self-start shrink-0 flex flex-col items-end gap-2">
+              {opp.createdBy === currentUser.id ? (
+                <>
+                  <button
+                    onClick={() => setViewingApplicants(opp)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold cursor-pointer whitespace-nowrap"
+                  >
+                    <Users className="w-3.5 h-3.5" /> Applicants ({opp.applicantsCount})
+                  </button>
+                  <button
+                    onClick={() => { if (window.confirm('Delete this opportunity?')) onDelete(opp.id); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </>
+              ) : opp.hasApplied ? (
+                <span className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-50 text-teal-700 text-xs font-bold border border-teal-200">
+                  <CheckCircle2 className="w-4 h-4 text-teal-600" /> Applied
+                </span>
               ) : (
                 <button
                   onClick={() => onApply(opp)}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold shadow-sm cursor-pointer whitespace-nowrap"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Easy Apply</span>
+                  <Send className="w-3.5 h-3.5" /> Apply
                 </button>
               )}
             </div>

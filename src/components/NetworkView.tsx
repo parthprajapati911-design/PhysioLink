@@ -21,6 +21,7 @@ interface NetworkViewProps {
   onAcceptConnection: (id: string) => void;
   onIgnoreConnection: (id: string) => void;
   onConnectRequest: (id: string) => void;
+  onViewProfile?: (userId: string) => void;
   onOpenChatWithUser?: (userId: string, name: string, headline: string, avatar: string, verified: boolean) => void;
 }
 
@@ -31,6 +32,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
   onIgnoreConnection,
   onConnectRequest,
   onOpenChatWithUser,
+  onViewProfile,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
@@ -92,7 +94,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
                   <Avatar src={req.avatar} name={req.name} className="w-12 h-12 rounded-full  shrink-0 border border-slate-200" />
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-bold text-slate-900">{req.name}</span>
+                      <button onClick={() => onViewProfile?.(req.id)} className="text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer">{req.name}</button>
                       {req.verified && <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />}
                       <span className="text-[11px] text-slate-400">· {req.location}</span>
                     </div>
@@ -189,14 +191,16 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
             >
               <div>
                 <div className="relative inline-block mx-auto mb-3">
-                  <Avatar src={person.avatar} name={person.name} className="w-16 h-16 rounded-full  border-2 border-slate-100 shadow-sm" />
+                  <button onClick={() => onViewProfile?.(person.id)} aria-label={`View ${person.name}`} className="cursor-pointer"><Avatar src={person.avatar} name={person.name} className="w-16 h-16 rounded-full  border-2 border-slate-100 shadow-sm" /></button>
                   {person.verified && (
                     <ShieldCheck className="w-4 h-4 text-teal-600 bg-white rounded-full absolute bottom-0 right-0 shadow" />
                   )}
                 </div>
 
-                <h3 className="text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer">
-                  {person.name}
+                <h3>
+                  <button onClick={() => onViewProfile?.(person.id)} className="text-sm font-bold text-slate-900 hover:text-blue-700 cursor-pointer">
+                    {person.name}
+                  </button>
                 </h3>
                 
                 <p className="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-snug">

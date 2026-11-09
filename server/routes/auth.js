@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import { query } from '../db.js';
+import { issueOtp, checkOtp, normalizePhone, RESEND_SECONDS } from '../otp.js';
 import { startSession, endSession } from '../auth.js';
 import { HttpError, ah, newId, str } from '../util.js';
 
@@ -96,6 +97,29 @@ router.post('/google', ah(async (req, res) => {
     );
   }
   startSession(res, userId);
+  res.json({ ok: true });
+}));
+
+// Forgot password, step 1: text a code to the verified mobile number on the account.
+// The reply is always the same, so nobody can use this to find out who is registered.
+router.post('/forgot', ah(async (req, res) => {
+  const phone = normalizePhone(req.body?.phone);
+  if (!phone) throw new HttpError(400, 'Enter a valid 10-digit Indian mobile number.');
+  const { rows } = await query('select id from users where phone = $1', [phone]);
+  const r = await issueOtp({ phone, purpose: 'reset', userId: rows[0]?.id || null });
+  res.json({ ok: true, resendIn: r?.resendIn ?? RESEND_SECONDS });
+}));
+
+// Forgot password, step 2: code + new password. Signs the person in and logs out older sessions.
+router.post('/reset', ah(async (req, res) => {
+  const phone = normalizePhone(req.body?.phone);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!phone) throw new HttpError(400, 'Enter a valid 10-digit Indian mobile number.');
+  if (password.length < 8 || password.length > 100) throw new HttpError(400, 'Password must be 8 to 100 characters.');
+  const row = await checkOtp({ phone, purpose: 'reset', code: req.body?.code });
+  const hash = await bcrypt.hash(password, 10);
+  await query('update users set password_hash = $2, password_changed_at = now() where id = $1', [row.user_id, hash]);
+  startSession(res, row.user_id);
   res.json({ ok: true });
 }));
 
