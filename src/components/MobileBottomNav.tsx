@@ -50,7 +50,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[10px] mt-1 tracking-tight">Network</span>
+          <span className="text-[10px] mt-1 tracking-tight">Connections</span>
         </button>
 
         {/* Tab 3: Create Post Action */}

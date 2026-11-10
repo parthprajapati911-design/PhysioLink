@@ -51,7 +51,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
     <div className="max-w-5xl mx-auto space-y-5 pb-12">
       <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-display">My Network</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 font-display">Connections</h1>
           <p className="text-xs text-slate-500 mt-1">Connect with physiotherapists. Once they accept, you can message each other.</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -61,7 +61,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
           </div>
           <div className={`px-4 py-2.5 rounded-xl border text-center ${invites.length ? 'bg-rose-50 border-rose-100 text-rose-900' : 'bg-teal-50 border-teal-100 text-teal-900'}`}>
             <span className="block font-bold text-base tabular-nums">{invites.length}</span>
-            <span className={`text-[11px] ${invites.length ? 'text-rose-700' : 'text-teal-700'}`}>Invitations</span>
+            <span className={`text-[11px] ${invites.length ? 'text-rose-700' : 'text-teal-700'}`}>Requests</span>
           </div>
         </div>
       </div>
@@ -71,7 +71,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
         <div className="bg-white rounded-2xl border border-blue-200 shadow-sm overflow-hidden">
           <div className="p-4 sm:p-5 border-b border-slate-100">
             <h2 className="text-sm font-bold text-slate-900 font-display flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-700" /> Invitations ({invites.length})
+              <Users className="w-4 h-4 text-blue-700" /> Connection requests ({invites.length})
             </h2>
           </div>
           <div className="divide-y divide-slate-100">
@@ -86,6 +86,7 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
                       {name(req)}
                       {req.verified && <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />}
                     </div>
+                    <p className="text-[11px] text-blue-700 font-medium">wants to connect with you</p>
                     <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">{req.headline}</p>
                     <p className="text-[11px] text-slate-400 mt-1">{[req.location, req.mutualCount ? `${req.mutualCount} mutual` : ''].filter(Boolean).join(' · ')}</p>
                   </div>

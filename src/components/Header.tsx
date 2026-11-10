@@ -142,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 )}
               </div>
-              <span>Network</span>
+              <span>Connections</span>
             </button>
 
             <button

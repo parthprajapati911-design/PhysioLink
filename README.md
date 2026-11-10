@@ -85,7 +85,8 @@ To try everything before paying for SMS, temporarily set `SMS_PROVIDER` = `conso
 - **Messaging rule:** you can only chat with someone **after they accept your connection request** (enforced on the server, not just hidden in the UI). Removing a connection closes the chat.
 - **Notifications (bell icon):** connection requests, accepted requests, likes and comments, with unread badges on the bell and the Network tab.
 - **Invite:** WhatsApp / share / copy-link card on the feed and the Network page, to bring your testers in.
-- New activity appears automatically (messages every 8 s, everything else every 20 s).
+- **Feed like other social apps:** once you have connections, the feed starts on *My connections* (their posts plus yours), with an *Everyone* toggle. When a connection posts, you get a notification.
+- **Live updates:** connection requests, accepts and notifications are checked every 5 s (and when you return to the tab); chat every 8 s; everything else every 20 s.
 - **Photos:** shrunk in the browser, then saved in your own Postgres database (nothing extra to set up). If `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set, Supabase Storage is used first and the database is the fallback.
 - **Accounts:** passwords are bcrypt hashed; login uses a secure httpOnly cookie; login/sign-up is rate-limited. Google tokens are verified on the server.
 - **Forgot password:** a member who has verified a mobile number can reset their password with an SMS code. Resetting also signs out older logins. Members without a verified number cannot reset by themselves.

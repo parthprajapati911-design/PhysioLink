@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 
 import { migrate, pool } from './db.js';
 import { requireAuth } from './auth.js';
-import { buildBootstrap } from './data.js';
+import { buildBootstrap, loadUsers, loadConnections } from './data.js';
+import { loadNotifications } from './notify.js';
 import { ah } from './util.js';
 import authRoutes from './routes/auth.js';
 import postRoutes from './routes/posts.js';
@@ -75,6 +76,16 @@ app.use('/api/images/file', imageFileRouter);
 app.get('/api/bootstrap', requireAuth, ah(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json(await buildBootstrap(req.user));
+}));
+// Small and fast: polled every few seconds so requests / notifications show up almost instantly.
+app.get('/api/network', requireAuth, ah(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const users = await loadUsers(req.user.id, req.user.role);
+  const [connections, notifications] = await Promise.all([
+    loadConnections(req.user.id, users),
+    loadNotifications(req.user.id),
+  ]);
+  res.json({ connections, notifications });
 }));
 const api = express.Router();
 api.use(requireAuth);

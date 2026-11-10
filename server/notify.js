@@ -7,6 +7,7 @@ const TEXT = {
   connection_accepted: 'accepted your connection request',
   like: 'liked your post',
   comment: 'commented on your post',
+  post: 'shared a new post',
 };
 
 // Fire-and-forget: a failed notification must never break the action that caused it.
@@ -46,4 +47,18 @@ export async function loadNotifications(userId) {
     isRead: r.is_read,
     timestamp: timeAgo(r.created_at),
   }));
+}
+
+// Tell everyone connected to this member about a new post (their "activity").
+export async function notifyConnectionsOfPost(authorId, postId) {
+  try {
+    const { rows } = await query(
+      `select case when requester_id = $1 then addressee_id else requester_id end as other
+         from connections where status = 'accepted' and (requester_id = $1 or addressee_id = $1)`,
+      [authorId],
+    );
+    for (const r of rows.slice(0, 200)) await notify(r.other, authorId, 'post', postId);
+  } catch (err) {
+    console.error('notifyConnectionsOfPost failed:', err.message);
+  }
 }

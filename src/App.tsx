@@ -136,6 +136,39 @@ export default function App() {
     };
   }, [authStatus]);
 
+  // Connection requests and notifications: check every 5 seconds (and when you return to the tab),
+  // so a request sent by someone else appears on your side almost immediately.
+  useEffect(() => {
+    if (authStatus !== 'in') return;
+    let busy = false;
+    let seen: Set<string> | null = null;
+    const poll = async () => {
+      if (busy || document.hidden) return;
+      busy = true;
+      try {
+        const d = await api.network();
+        setConnections(d.connections);
+        setNotifications(d.notifications);
+        // Something new happened (a connection posted, accepted, liked...): refresh posts and people right away.
+        const ids = new Set(d.notifications.map((n) => n.id));
+        const fresh = seen !== null && d.notifications.some((n) => !seen!.has(n.id));
+        seen = ids;
+        if (fresh) {
+          const data = await api.bootstrap();
+          setUsers(data.users);
+          setPosts(data.posts);
+        }
+      } catch {
+        /* ignore temporary network errors */
+      } finally {
+        busy = false;
+      }
+    };
+    const timer = setInterval(poll, 5000);
+    document.addEventListener('visibilitychange', poll);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', poll); };
+  }, [authStatus]);
+
   // Run a server call; on failure show a message and re-sync with the server.
   const run = (promise: Promise<unknown>) => {
     promise.catch((e) => {
@@ -473,6 +506,7 @@ export default function App() {
   const handlePickNotification = (n: AppNotification) => {
     if (n.type === 'connection_request') selectTab('network');
     else if (n.type === 'connection_accepted') openProfile(n.actorId);
+    else if (n.type === 'post') openProfile(n.actorId);
     else selectTab('home');
   };
 

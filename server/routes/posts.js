@@ -4,7 +4,7 @@ import { loadPost } from '../data.js';
 import { toComment } from '../mappers.js';
 import { HttpError, ah, newId, str } from '../util.js';
 import { isOwnImageUrl } from './images.js';
-import { notify } from '../notify.js';
+import { notify, notifyConnectionsOfPost } from '../notify.js';
 
 const router = Router();
 // One tag per post. (Older posts may still carry legacy types; those just display as before.)
@@ -22,6 +22,7 @@ router.post('/', ah(async (req, res) => {
      values ($1, $2, $3, '', $4, '[]'::jsonb, $5)`,
     [id, req.user.id, type, content, imageUrl],
   );
+  await notifyConnectionsOfPost(req.user.id, id);
   res.status(201).json({ post: await loadPost(req.user.id, id) });
 }));
 

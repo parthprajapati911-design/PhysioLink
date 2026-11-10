@@ -92,6 +92,8 @@ export const api = {
   removeConnection: (userId: string) =>
     request<{ ok: true }>('DELETE', `/api/connections/${encodeURIComponent(userId)}`),
 
+  network: () => request<{ connections: Connection[]; notifications: AppNotification[] }>('GET', '/api/network'),
+
   // notifications
   notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
   markNotificationsRead: () => request<{ ok: true }>('POST', '/api/notifications/read'),

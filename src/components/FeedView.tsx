@@ -30,10 +30,15 @@ export const FeedView: React.FC<FeedViewProps> = ({
   posts, currentUser, onLikePost, onBookmarkPost, onAddComment, onDeletePost, onOpenCreateModal, onViewProfile, onEditProfile, onVerifyPhone, connections, onConnect, onOpenNetwork,
 }) => {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
+  // Like other social apps: once you have connections, the feed starts with their activity.
+  const connectedIds = new Set(connections.filter((c) => c.status === 'connected').map((c) => c.id));
+  const [scopeChoice, setScopeChoice] = useState<'connections' | 'everyone' | null>(null);
+  const scope = scopeChoice ?? (connectedIds.size > 0 ? 'connections' : 'everyone');
+  const scoped = scope === 'connections' ? posts.filter((p) => connectedIds.has(p.authorId) || p.authorId === currentUser.id) : posts;
   const visible =
-    filter === 'all' ? posts
-    : filter === 'saved' ? posts.filter((p) => p.isBookmarked)
-    : posts.filter((p) => tagLabel(p.type).toLowerCase() === filter);
+    filter === 'all' ? scoped
+    : filter === 'saved' ? scoped.filter((p) => p.isBookmarked)
+    : scoped.filter((p) => tagLabel(p.type).toLowerCase() === filter);
   const myPostsCount = posts.filter((p) => p.authorId === currentUser.id).length;
   const myTag = profileTagLabel(currentUser.accountType);
   const invites = connections.filter((c) => c.status === 'pending').length;
@@ -97,6 +102,21 @@ export const FeedView: React.FC<FeedViewProps> = ({
           </button>
         </div>
 
+        {/* Whose posts */}
+        <div className="flex gap-1 p-1 bg-slate-200/70 rounded-xl w-fit" role="tablist" aria-label="Feed">
+          {([['connections', `My connections (${connectedIds.size})`], ['everyone', 'Everyone']] as const).map(([v, l]) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={scope === v}
+              onClick={() => setScopeChoice(v)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors ${scope === v ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
         {/* Tag filter */}
         {posts.length > 0 && (
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -116,7 +136,7 @@ export const FeedView: React.FC<FeedViewProps> = ({
 
         {visible.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
-            {posts.length === 0 ? 'No posts yet. Be the first to post.' : filter === 'saved' ? 'You have not saved any posts yet.' : 'No posts with this tag.'}
+            {posts.length === 0 ? 'No posts yet. Be the first to post.' : scope === 'connections' && filter === 'all' ? 'Your connections have not posted yet. Switch to Everyone to see all posts.' : filter === 'saved' ? 'You have not saved any posts yet.' : 'No posts with this tag.'}
           </div>
         ) : (
           visible.map((post) => (
