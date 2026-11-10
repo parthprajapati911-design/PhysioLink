@@ -9,6 +9,7 @@ interface MobileBottomNavProps {
   onOpenCreateModal: () => void;
   currentUser: UserProfile;
   unreadMessagesCount?: number;
+  pendingInvitesCount?: number;
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
@@ -17,6 +18,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenCreateModal,
   currentUser,
   unreadMessagesCount = 0,
+  pendingInvitesCount = 0,
 }) => {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 py-1.5 px-2 safe-bottom shadow-lg">
@@ -40,7 +42,14 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             currentTab === 'network' ? 'text-blue-700 font-semibold' : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          <Users className="w-5 h-5" />
+          <div className="relative">
+            <Users className="w-5 h-5" />
+            {pendingInvitesCount > 0 && (
+              <span className="absolute -top-1 -right-2 bg-rose-600 text-white text-[9px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center ring-1 ring-white">
+                {pendingInvitesCount > 9 ? '9+' : pendingInvitesCount}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] mt-1 tracking-tight">Network</span>
         </button>
 

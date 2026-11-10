@@ -49,8 +49,7 @@ git push -u origin main
 |---|---|
 | `DATABASE_URL` | the Supabase Session pooler string from step 1 |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | your admin login (password 10+ characters) |
-| `SUPABASE_URL` | your Supabase **Project URL** (Project Settings → API), e.g. `https://abcd1234.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | the **service_role** (or **secret**) key from the same page. Keep it private. Photos are saved in a bucket called `physiolink-images`, created automatically on the first upload |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | **optional**. Photos now work without them (they are saved in your database). Add them only if you want photos kept in Supabase Storage instead |
 | `FAST2SMS_API_KEY` | optional – sends the SMS codes for mobile verification and password reset (step 6) |
 | `SMS_PROVIDER` | leave empty. Set to `console` only for testing: no SMS is sent and the code appears in the Render **Logs** |
 | `GOOGLE_CLIENT_ID` | optional – turns on **Continue with Google** (see step 5) |
@@ -82,12 +81,21 @@ To try everything before paying for SMS, temporarily set `SMS_PROVIDER` = `conso
 - **Search:** the search box in the top bar finds people by name, headline, workplace or city.
 - **Posts:** a photo and/or a caption plus one tag (Case, Achievement, Research, Event, Update). Filter the feed by tag, or by **Saved** posts. You can delete your own posts.
 - **Opportunities:** any member can post a job, internship, fellowship or faculty role and see who applied (name, email, phone, message). Applicants can apply with an optional note.
-- **Network & messages:** connection requests, accept/ignore, and one-to-one chat. New activity appears automatically (the app refreshes in the background).
-- **Photos:** shrunk in the browser and saved in Supabase Storage; the database keeps only the link.
+- **Network:** *Discover* (people you may know, ranked by mutual connections, same city, same specialization and same workplace, with the reason shown), *My connections*, and *Sent* requests (withdraw any time). Invitations appear at the top with Accept / Ignore.
+- **Messaging rule:** you can only chat with someone **after they accept your connection request** (enforced on the server, not just hidden in the UI). Removing a connection closes the chat.
+- **Notifications (bell icon):** connection requests, accepted requests, likes and comments, with unread badges on the bell and the Network tab.
+- **Invite:** WhatsApp / share / copy-link card on the feed and the Network page, to bring your testers in.
+- New activity appears automatically (messages every 8 s, everything else every 20 s).
+- **Photos:** shrunk in the browser, then saved in your own Postgres database (nothing extra to set up). If `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` are set, Supabase Storage is used first and the database is the fallback.
 - **Accounts:** passwords are bcrypt hashed; login uses a secure httpOnly cookie; login/sign-up is rate-limited. Google tokens are verified on the server.
 - **Forgot password:** a member who has verified a mobile number can reset their password with an SMS code. Resetting also signs out older logins. Members without a verified number cannot reset by themselves.
 - **Admin:** set by `ADMIN_EMAIL`/`ADMIN_PASSWORD`. The verification queue stays empty because sign-up does not collect registration numbers.
 - Tables are locked from Supabase's public API (Row Level Security on, no policies) – only this backend can read or write.
+
+## Testing with a group
+1. Deploy, then share your Render link (use the **Invite** card).
+2. Ask each tester to sign up and add a photo, headline, city and specialization (this powers *People you may know*).
+3. Testers send connection requests; once accepted, the **Message** button unlocks.
 
 ## Not built yet (good next steps)
 - Password reset and email verification (needs an email service such as Resend/SMTP)

@@ -2,6 +2,7 @@
 import { query } from './db.js';
 import { toUser, toPost, toComment, toOpportunity, toVerification } from './mappers.js';
 import { chatTime, convId } from './util.js';
+import { loadNotifications } from './notify.js';
 
 export async function loadUsers(meId, meRole) {
   const { rows } = await query(
@@ -89,11 +90,27 @@ export async function loadConnections(meId, usersMap) {
     if (c.status === 'accepted') statusByUser[other] = 'connected';
     else statusByUser[other] = c.requester_id === meId ? 'requested' : 'pending';
   }
+  const me = usersMap[meId] || {};
+  const norm = (v) => String(v || '').trim().toLowerCase();
+  const firstPart = (v) => norm(v).split(',')[0].trim();
+  const myPlace = norm(me.currentCompany || me.college);
   const list = [];
   for (const u of Object.values(usersMap)) {
     if (u.id === meId || u.accountType === 'admin') continue;
     let mutual = 0;
     for (const f of friends[u.id] || []) if (myFriends.has(f)) mutual++;
+
+    // "People you may know": why this person is suggested.
+    const reasons = [];
+    let score = mutual * 5;
+    if (mutual) reasons.push(`${mutual} mutual connection${mutual === 1 ? '' : 's'}`);
+    const place = norm(u.currentCompany || u.college);
+    if (myPlace && place && myPlace === place) { score += 4; reasons.push('Same workplace / college'); }
+    if (firstPart(me.location) && firstPart(me.location) === firstPart(u.location)) { score += 3; reasons.push('Same city'); }
+    if (norm(me.specialization) && norm(me.specialization) === norm(u.specialization)) { score += 3; reasons.push('Same specialization'); }
+    if (['academician', 'clinician', 'student'].includes(u.accountType) && u.accountType === me.accountType) score += 1;
+    if (u.avatar) score += 0.5; // complete profiles first
+
     list.push({
       id: u.id,
       name: u.name,
@@ -106,13 +123,15 @@ export async function loadConnections(meId, usersMap) {
       accountType: u.accountType,
       status: statusByUser[u.id] || 'suggestion',
       mutualCount: mutual,
+      reasons: reasons.slice(0, 2),
+      score,
     });
   }
   const rank = { pending: 0, connected: 1, requested: 2, suggestion: 3 };
-  list.sort((a, b) => rank[a.status] - rank[b.status] || b.mutualCount - a.mutualCount);
+  list.sort((a, b) => rank[a.status] - rank[b.status] || b.score - a.score);
   // keep the suggestion list a sensible size
   let suggestions = 0;
-  return list.filter((c) => (c.status === 'suggestion' ? ++suggestions <= 60 : true));
+  return list.filter((c) => (c.status === 'suggestion' ? ++suggestions <= 60 : true)).map(({ score, ...c }) => c);
 }
 
 export async function loadVerifications() {
@@ -181,12 +200,13 @@ export async function loadConversations(meId) {
 export async function buildBootstrap(user) {
   const users = await loadUsers(user.id, user.role);
   const me = users[user.id];
-  const [posts, opportunities, connections, conversations, verifications] = await Promise.all([
+  const [posts, opportunities, connections, conversations, verifications, notifications] = await Promise.all([
     loadPosts(user.id),
     loadOpportunities(user.id),
     loadConnections(user.id, users),
     loadConversations(user.id),
     user.role === 'admin' ? loadVerifications() : Promise.resolve([]),
+    loadNotifications(user.id),
   ]);
-  return { me, users, posts, opportunities, connections, conversations, verifications };
+  return { me, users, posts, opportunities, connections, conversations, verifications, notifications };
 }

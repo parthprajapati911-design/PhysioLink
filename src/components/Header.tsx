@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ViewTab, UserProfile } from '../types';
+import { ViewTab, UserProfile, AppNotification } from '../types';
+import { NotificationBell } from './NotificationBell';
 import { LOGO_URL, BRAND_NAME } from '../data/brand';
 import { Avatar } from './Avatar';
 import { Home, Users, Briefcase, User, ShieldCheck, Plus, Search, CheckCircle2, MessageSquare } from 'lucide-react';
@@ -11,6 +12,10 @@ interface HeaderProps {
   allUsers?: Record<string, UserProfile>;
   onOpenCreateModal: () => void;
   unreadMessagesCount?: number;
+  pendingInvitesCount?: number;
+  notifications?: AppNotification[];
+  onOpenNotifications?: () => void;
+  onPickNotification?: (n: AppNotification) => void;
   onViewProfile: (userId: string) => void;
 }
 
@@ -74,6 +79,10 @@ export const Header: React.FC<HeaderProps> = ({
   allUsers = {},
   onOpenCreateModal,
   unreadMessagesCount = 0,
+  pendingInvitesCount = 0,
+  notifications = [],
+  onOpenNotifications,
+  onPickNotification,
   onViewProfile,
 }) => {
   return (
@@ -125,7 +134,14 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              <Users className="w-4 h-4" />
+              <div className="relative">
+                <Users className="w-4 h-4" />
+                {pendingInvitesCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 bg-rose-600 text-white text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-white">
+                    {pendingInvitesCount > 9 ? '9+' : pendingInvitesCount}
+                  </span>
+                )}
+              </div>
               <span>Network</span>
             </button>
 
@@ -190,7 +206,12 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Zone 3: Primary Action & Profile Quick Trigger */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <NotificationBell
+              notifications={notifications}
+              onOpen={() => onOpenNotifications?.()}
+              onPick={(n) => onPickNotification?.(n)}
+            />
             <button
               onClick={onOpenCreateModal}
               className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer whitespace-nowrap"

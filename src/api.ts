@@ -1,6 +1,6 @@
 import type {
   UserProfile, Post, PostComment, Opportunity, Applicant, NewOpportunity, Connection,
-  VerificationRequest, Conversation, ChatMessage,
+  VerificationRequest, Conversation, ChatMessage, AppNotification,
 } from './types';
 
 export class ApiError extends Error {
@@ -19,6 +19,7 @@ export interface Bootstrap {
   connections: Connection[];
   verifications: VerificationRequest[];
   conversations: Conversation[];
+  notifications: AppNotification[];
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -90,6 +91,10 @@ export const api = {
     request<{ status: string }>('POST', `/api/connections/${encodeURIComponent(userId)}/accept`),
   removeConnection: (userId: string) =>
     request<{ ok: true }>('DELETE', `/api/connections/${encodeURIComponent(userId)}`),
+
+  // notifications
+  notifications: () => request<{ notifications: AppNotification[] }>('GET', '/api/notifications'),
+  markNotificationsRead: () => request<{ ok: true }>('POST', '/api/notifications/read'),
 
   // messages
   conversations: () => request<{ conversations: Conversation[] }>('GET', '/api/conversations'),

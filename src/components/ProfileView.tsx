@@ -130,9 +130,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 {(connectionStatus === 'suggestion' || !connectionStatus) && (
                   <button onClick={() => onConnect(user.id)} className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold px-5 py-2 rounded-full cursor-pointer"><UserPlus className="w-4 h-4" /> Connect</button>
                 )}
-                <button onClick={() => onMessage(user)} className="flex items-center gap-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold px-5 py-2 rounded-full cursor-pointer">
-                  <MessageSquare className="w-4 h-4" /> Message
-                </button>
+                {connectionStatus === 'connected' ? (
+                  <button onClick={() => onMessage(user)} className="flex items-center gap-1.5 border border-blue-700 text-blue-700 hover:bg-blue-50 text-sm font-semibold px-5 py-2 rounded-full cursor-pointer">
+                    <MessageSquare className="w-4 h-4" /> Message
+                  </button>
+                ) : (
+                  <p className="text-xs text-slate-500 self-center">
+                    {connectionStatus === 'requested' ? 'You can message once they accept.' : connectionStatus === 'pending' ? 'Accept to start chatting.' : 'Connect to send messages.'}
+                  </p>
+                )}
               </>
             )}
           </div>

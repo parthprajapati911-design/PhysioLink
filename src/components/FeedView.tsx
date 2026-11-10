@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ImagePlus } from 'lucide-react';
-import type { Post, UserProfile } from '../types';
+import type { Post, UserProfile, Connection } from '../types';
+import { PeopleYouMayKnow } from './PeopleYouMayKnow';
+import { InviteCard } from './InviteCard';
 import { Avatar } from './Avatar';
 import { PostCard } from './PostCard';
 import { WelcomeCard } from './WelcomeCard';
@@ -17,12 +19,15 @@ interface FeedViewProps {
   onViewProfile: (userId: string) => void;
   onEditProfile: () => void;
   onVerifyPhone: () => void;
+  connections: Connection[];
+  onConnect: (id: string) => void;
+  onOpenNetwork: () => void;
 }
 
 const FILTERS = ['all', 'case', 'achievement', 'research', 'event', 'update', 'saved'] as const;
 
 export const FeedView: React.FC<FeedViewProps> = ({
-  posts, currentUser, onLikePost, onBookmarkPost, onAddComment, onDeletePost, onOpenCreateModal, onViewProfile, onEditProfile, onVerifyPhone,
+  posts, currentUser, onLikePost, onBookmarkPost, onAddComment, onDeletePost, onOpenCreateModal, onViewProfile, onEditProfile, onVerifyPhone, connections, onConnect, onOpenNetwork,
 }) => {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('all');
   const visible =
@@ -31,12 +36,14 @@ export const FeedView: React.FC<FeedViewProps> = ({
     : posts.filter((p) => tagLabel(p.type).toLowerCase() === filter);
   const myPostsCount = posts.filter((p) => p.authorId === currentUser.id).length;
   const myTag = profileTagLabel(currentUser.accountType);
+  const invites = connections.filter((c) => c.status === 'pending').length;
 
   return (
     <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
       {/* Small profile card (desktop) */}
       <aside className="hidden lg:block">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden sticky top-24">
+        <div className="sticky top-24 space-y-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="h-16 bg-gradient-to-r from-blue-700 to-teal-600" />
           <div className="px-4 pb-4 -mt-8 text-center">
             <button onClick={() => onViewProfile(currentUser.id)} className="cursor-pointer">
@@ -48,11 +55,33 @@ export const FeedView: React.FC<FeedViewProps> = ({
             {myTag && <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{myTag}</span>}
             {currentUser.headline && <p className="text-xs text-slate-500 mt-1.5 line-clamp-2">{currentUser.headline}</p>}
           </div>
+          <button onClick={onOpenNetwork} className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-xs hover:bg-slate-50 cursor-pointer">
+            <span className="text-slate-600">Connections</span>
+            <span className="font-bold text-blue-700">{currentUser.connectionsCount}</span>
+          </button>
+          {invites > 0 && (
+            <button onClick={onOpenNetwork} className="w-full flex items-center justify-between px-4 py-3 border-t border-slate-100 text-xs bg-rose-50/60 hover:bg-rose-50 cursor-pointer">
+              <span className="text-rose-800 font-semibold">Pending invitations</span>
+              <span className="font-bold text-rose-700">{invites}</span>
+            </button>
+          )}
+        </div>
+        <PeopleYouMayKnow connections={connections} onConnect={onConnect} onViewProfile={onViewProfile} onSeeAll={onOpenNetwork} />
+        <InviteCard name={currentUser.name} compact />
         </div>
       </aside>
 
       <div className="space-y-4 min-w-0">
         <WelcomeCard user={currentUser} postsCount={myPostsCount} onEditProfile={onEditProfile} onCreatePost={onOpenCreateModal} onVerifyPhone={onVerifyPhone} />
+
+        {invites > 0 && (
+          <button onClick={onOpenNetwork} className="lg:hidden w-full text-left bg-rose-50 border border-rose-200 text-rose-800 text-sm font-semibold rounded-2xl px-4 py-3 cursor-pointer">
+            You have {invites} connection {invites === 1 ? 'request' : 'requests'}. Tap to review.
+          </button>
+        )}
+        <div className="lg:hidden">
+          <PeopleYouMayKnow connections={connections} onConnect={onConnect} onViewProfile={onViewProfile} onSeeAll={onOpenNetwork} limit={3} />
+        </div>
 
         {/* Start a post */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">

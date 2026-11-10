@@ -111,23 +111,10 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
     'Available for a quick case discussion today.',
   ];
 
-  // Candidates for New Message
-  const availableRecipients = [
-    ...Object.values(allUsers).filter((u) => u.id !== currentUser.id).map((u) => ({
-      id: u.id,
-      name: u.name,
-      headline: u.headline,
-      avatar: u.avatar,
-      verified: u.verifiedStatus === 'verified',
-    })),
-    ...connections.filter((c) => c.status === 'connected').map((c) => ({
-      id: c.id,
-      name: c.name,
-      headline: c.headline,
-      avatar: c.avatar,
-      verified: c.verified,
-    })),
-  ].filter((v, i, a) => a.findIndex((t) => t.id === v.id) === i);
+  // Only people who accepted a connection can be messaged.
+  const availableRecipients = connections
+    .filter((c) => c.status === 'connected')
+    .map((c) => ({ id: c.id, name: c.name, headline: c.headline, avatar: c.avatar, verified: c.verified }));
 
   const filteredRecipients = availableRecipients.filter((r) =>
     r.name.toLowerCase().includes(composeSearch.toLowerCase()) ||
@@ -151,7 +138,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
     <div className="max-w-6xl mx-auto h-[calc(100vh-140px)] min-h-[600px] bg-white rounded-2xl border border-slate-200 shadow-sm flex overflow-hidden">
       
       {/* 1. LEFT SIDEBAR: Conversations List */}
-      <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 ${
+      <div className={`w-full md:w-80 lg:w-96 md:shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/50 ${
         mobileShowThread ? 'hidden md:flex' : 'flex'
       }`}>
         
@@ -294,7 +281,7 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
 
       {/* 2. RIGHT PANEL: Active Chat Thread */}
       {activeConversation ? (
-        <div className={`flex-1 flex flex-col bg-white ${
+        <div className={`flex-1 min-w-0 flex flex-col bg-white ${
           mobileShowThread ? 'flex' : 'hidden md:flex'
         }`}>
           
@@ -524,8 +511,13 @@ export const MessagingView: React.FC<MessagingViewProps> = ({
 
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100 p-2">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 py-1.5">
-                Suggested Connections
+                Your connections
               </p>
+              {availableRecipients.length === 0 && (
+                <p className="text-xs text-slate-500 px-3 py-6 text-center leading-relaxed">
+                  You can message people once they accept your connection request. Go to the Network tab to connect.
+                </p>
+              )}
               {filteredRecipients.map((recipient) => (
                 <div
                   key={recipient.id}

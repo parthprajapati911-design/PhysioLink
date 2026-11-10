@@ -22,6 +22,7 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
   const [form, setForm] = useState<UserProfile>(user);
   const [skillInput, setSkillInput] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +39,7 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
       const dataUrl = await shrinkImage(file, field === 'avatar' ? 600 : 1600, 0.85);
       const { url } = await api.uploadImage(dataUrl);
       set(field, url);
+      setUploaded(true);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -109,6 +111,8 @@ const EditForm: React.FC<Omit<EditProfileModalProps, 'isOpen'>> = ({ user, onClo
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={pickImage('avatar')} className="hidden" />
             </div>
           </div>
+
+          {uploaded && <p className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 -mt-2">Photo uploaded. Press <b>Save</b> at the bottom to apply it to your profile.</p>}
 
           {/* Cover photo */}
           <div>

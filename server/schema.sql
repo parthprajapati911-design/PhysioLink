@@ -148,3 +148,28 @@ alter table opportunities  enable row level security;
 alter table applications   enable row level security;
 alter table verifications  enable row level security;
 alter table otp_codes      enable row level security;
+
+-- ===== v2: photos stored in the database (no external storage needed) =====
+create table if not exists images (
+  id         text primary key,
+  owner_id   text references users(id) on delete cascade,
+  mime       text not null,
+  data       bytea not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists images_owner_idx on images(owner_id);
+
+-- ===== v2: notifications (bell icon) =====
+create table if not exists notifications (
+  id         text primary key,
+  user_id    text not null references users(id) on delete cascade,
+  actor_id   text references users(id) on delete cascade,
+  type       text not null,
+  ref        text,
+  is_read    boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists notifications_user_idx on notifications(user_id, created_at desc);
+
+alter table images        enable row level security;
+alter table notifications enable row level security;

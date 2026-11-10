@@ -206,6 +206,19 @@ export interface Connection {
   accountType: AccountType;
   status: 'connected' | 'pending' | 'requested' | 'suggestion';
   mutualCount: number;
+  reasons?: string[]; // why this person is suggested, e.g. "Same city"
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'connection_request' | 'connection_accepted' | 'like' | 'comment' | string;
+  text: string;
+  actorId: string;
+  actorName: string;
+  actorAvatar: string;
+  ref: string;
+  isRead: boolean;
+  timestamp: string;
 }
 
 export interface VerificationRequest {

@@ -21,7 +21,7 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      # Supabase Storage: where post photos and profile photos are saved
+      # OPTIONAL Supabase Storage for photos (without it, photos are saved in the database)
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY

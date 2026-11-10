@@ -17,7 +17,7 @@ import postRoutes from './routes/posts.js';
 import socialRoutes from './routes/social.js';
 import adminRoutes from './routes/admin.js';
 import { ensureAdmin, seedDemoData, purgeDemoData } from './seed.js';
-import { uploadRouter } from './routes/images.js';
+import { uploadRouter, imageFileRouter } from './routes/images.js';
 import phoneRoutes from './routes/phone.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -67,6 +67,9 @@ app.use('/api/auth/google', authLimiter);
 app.use('/api/auth/forgot', authLimiter);
 app.use('/api/auth/reset', authLimiter);
 app.use('/api/auth', authRoutes);
+
+// Photos are public (an <img> tag needs no sign-in); upload itself requires sign-in below.
+app.use('/api/images/file', imageFileRouter);
 
 // Everything below needs a signed-in user.
 app.get('/api/bootstrap', requireAuth, ah(async (req, res) => {

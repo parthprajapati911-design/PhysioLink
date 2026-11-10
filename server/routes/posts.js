@@ -4,6 +4,7 @@ import { loadPost } from '../data.js';
 import { toComment } from '../mappers.js';
 import { HttpError, ah, newId, str } from '../util.js';
 import { isOwnImageUrl } from './images.js';
+import { notify } from '../notify.js';
 
 const router = Router();
 // One tag per post. (Older posts may still carry legacy types; those just display as before.)
@@ -12,7 +13,7 @@ const POST_TAGS = ['case', 'achievement', 'research', 'event', 'update'];
 router.post('/', ah(async (req, res) => {
   const b = req.body || {};
   const content = str(b.content, 5000);
-  const imageUrl = isOwnImageUrl(b.imageUrl, req.user.id) ? b.imageUrl : null;
+  const imageUrl = (await isOwnImageUrl(b.imageUrl, req.user.id)) ? b.imageUrl : null;
   if (!content && !imageUrl) throw new HttpError(400, 'Add a photo or a caption to post.');
   const type = POST_TAGS.includes(b.type) ? b.type : 'update';
   const id = newId('post');
@@ -43,6 +44,10 @@ async function toggle(table, req, res) {
     await query(`delete from ${table} where post_id = $1 and user_id = $2`, [postId, req.user.id]);
   }
   const { rows } = await query(`select count(*)::int as n from ${table} where post_id = $1`, [postId]);
+  if (value && table === 'post_likes') {
+    const a = await query('select author_id from posts where id = $1', [postId]);
+    await notify(a.rows[0]?.author_id, req.user.id, 'like', postId);
+  }
   res.json({ count: rows[0].n, value });
 }
 
@@ -63,6 +68,8 @@ router.post('/:id/comments', ah(async (req, res) => {
      from ins join users u on u.id = ins.author_id`,
     [id, req.params.id, req.user.id, content],
   );
+  const a = await query('select author_id from posts where id = $1', [req.params.id]);
+  await notify(a.rows[0]?.author_id, req.user.id, 'comment', req.params.id);
   res.status(201).json({ comment: toComment(rows[0]) });
 }));
 

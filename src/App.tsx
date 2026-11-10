@@ -8,7 +8,8 @@ import {
   Connection,
   VerificationRequest,
   Conversation,
-  ChatMessage
+  ChatMessage,
+  AppNotification
 } from './types';
 import { api, errorMessage } from './api';
 import type { Bootstrap } from './api';
@@ -43,6 +44,7 @@ export default function App() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>('');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -70,6 +72,7 @@ export default function App() {
     setOpportunities(data.opportunities);
     setVerifications(data.verifications);
     setConversations(data.conversations);
+    setNotifications(data.notifications || []);
     setActiveConversationId((prev) =>
       data.conversations.some((c) => c.id === prev) ? prev : (data.conversations[0]?.id ?? '')
     );
@@ -85,7 +88,7 @@ export default function App() {
     refresh().catch(() => setAuthStatus('out'));
   }, [refresh]);
 
-  // Pick up new chat messages every 15 seconds
+  // Pick up new chat messages every 8 seconds
   useEffect(() => {
     if (authStatus !== 'in') return;
     const timer = setInterval(async () => {
@@ -99,11 +102,11 @@ export default function App() {
       } catch {
         /* ignore temporary network errors */
       }
-    }, 15000);
+    }, 8000);
     return () => clearInterval(timer);
   }, [authStatus]);
 
-  // Quietly refresh people, posts, requests and jobs every 45 seconds and when you return to the tab,
+  // Quietly refresh people, posts, requests, notifications and jobs every 20 seconds and when you return to the tab,
   // so new activity shows up without reloading the page.
   useEffect(() => {
     if (authStatus !== 'in') return;
@@ -118,13 +121,14 @@ export default function App() {
         setConnections(data.connections);
         setOpportunities(data.opportunities);
         setVerifications(data.verifications);
+        setNotifications(data.notifications || []);
       } catch {
         /* ignore temporary network errors */
       } finally {
         busy = false;
       }
     };
-    const timer = setInterval(sync, 45000);
+    const timer = setInterval(sync, 20000);
     document.addEventListener('visibilitychange', sync);
     return () => {
       clearInterval(timer);
@@ -306,6 +310,11 @@ export default function App() {
     avatar: string,
     verified: boolean
   ) => {
+    // Chat is only for accepted connections.
+    if (connections.find((c) => c.id === userId)?.status !== 'connected') {
+      notify('You can message this person once they accept your connection request.');
+      return;
+    }
     const existing = conversations.find((c) => c.participantIds.includes(userId));
     if (existing) {
       setActiveConversationId(existing.id);
@@ -323,7 +332,9 @@ export default function App() {
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversationId(newConvId);
     }
+    setViewedUserId(null);
     setCurrentTab('messaging');
+    window.scrollTo(0, 0);
   };
 
   const handleOpenEditProfile = () => setIsEditProfileOpen(true);
@@ -411,6 +422,21 @@ export default function App() {
     run(api.removeConnection(connectionId));
   };
 
+  // Withdraw a sent request, or remove an existing connection.
+  const handleRemoveConnection = (connectionId: string) => {
+    const wasConnected = connections.find((c) => c.id === connectionId)?.status === 'connected';
+    setConnections((prev) =>
+      prev.map((c) => (c.id === connectionId ? { ...c, status: 'suggestion' } : c))
+    );
+    if (wasConnected) {
+      setUsers((prev) => ({
+        ...prev,
+        [currentUser.id]: { ...currentUser, connectionsCount: Math.max(0, currentUser.connectionsCount - 1) },
+      }));
+    }
+    run(api.removeConnection(connectionId));
+  };
+
   const handleConnectRequest = (connectionId: string) => {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, status: 'requested' } : c))
@@ -438,6 +464,18 @@ export default function App() {
     run(api.deleteOpportunity(id));
   };
 
+  // ---------- Notifications ----------
+  const handleOpenNotifications = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    api.markNotificationsRead().catch(() => undefined);
+  };
+
+  const handlePickNotification = (n: AppNotification) => {
+    if (n.type === 'connection_request') selectTab('network');
+    else if (n.type === 'connection_accepted') openProfile(n.actorId);
+    else selectTab('home');
+  };
+
   // ---------- Navigation ----------
   const selectTab = (tab: ViewTab) => {
     setViewedUserId(null);
@@ -453,7 +491,6 @@ export default function App() {
 
   const handleMessageUser = (u: UserProfile) => {
     handleOpenChatWithUser(u.id, u.name, u.headline, u.avatar, u.verifiedStatus === 'verified');
-    selectTab('messaging');
   };
 
   const reviewVerification = (reqId: string, status: 'approved' | 'rejected') => {
@@ -473,6 +510,7 @@ export default function App() {
   const handleRejectVerification = (reqId: string) => reviewVerification(reqId, 'rejected');
 
   const isAdmin = currentUser?.accountType === 'admin';
+  const pendingInvitesCount = connections.filter((c) => c.status === 'pending').length;
 
   if (authStatus === 'loading') {
     return (
@@ -525,6 +563,10 @@ export default function App() {
           onViewProfile={openProfile}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           unreadMessagesCount={totalUnreadMessages}
+          pendingInvitesCount={pendingInvitesCount}
+          notifications={notifications}
+          onOpenNotifications={handleOpenNotifications}
+          onPickNotification={handlePickNotification}
         />
 
         <main className="flex-1 py-6 px-4 sm:px-6 pb-24 md:pb-6">
@@ -540,6 +582,9 @@ export default function App() {
               onViewProfile={openProfile}
               onEditProfile={() => { setViewedUserId(null); setCurrentTab('profile'); handleOpenEditProfile(); }}
               onVerifyPhone={() => setIsPhoneOpen(true)}
+              connections={connections}
+              onConnect={handleConnectRequest}
+              onOpenNetwork={() => selectTab('network')}
             />
           )}
 
@@ -577,7 +622,8 @@ export default function App() {
               onAcceptConnection={handleAcceptConnection}
               onIgnoreConnection={handleIgnoreConnection}
               onConnectRequest={handleConnectRequest}
-              onOpenChatWithUser={(...args) => { handleOpenChatWithUser(...args); selectTab('messaging'); }}
+              onRemoveConnection={handleRemoveConnection}
+              onOpenChatWithUser={(...args) => handleOpenChatWithUser(...args)}
               onViewProfile={openProfile}
             />
           )}
@@ -643,6 +689,7 @@ export default function App() {
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           currentUser={currentUser}
           unreadMessagesCount={totalUnreadMessages}
+          pendingInvitesCount={pendingInvitesCount}
         />
       </div>
 

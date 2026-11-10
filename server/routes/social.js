@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { loadConversations } from '../data.js';
+import { notify, loadNotifications } from '../notify.js';
 import { toUser } from '../mappers.js';
 import { HttpError, ah, newId, str, cleanProfile, chatTime } from '../util.js';
 
@@ -74,6 +75,11 @@ router.post('/connections/:userId/request', ah(async (req, res) => {
       [req.user.id, other],
     );
   }
+  if (reverse.rowCount) {
+    await notify(other, req.user.id, 'connection_accepted');
+  } else {
+    await notify(other, req.user.id, 'connection_request');
+  }
   res.json({ status: reverse.rowCount ? 'connected' : 'requested' });
 }));
 
@@ -84,6 +90,7 @@ router.post('/connections/:userId/accept', ah(async (req, res) => {
     [req.params.userId, req.user.id],
   );
   if (!r.rowCount) throw new HttpError(404, 'No pending request from this user.');
+  await notify(req.params.userId, req.user.id, 'connection_accepted');
   res.json({ status: 'connected' });
 }));
 
@@ -92,6 +99,11 @@ router.delete('/connections/:userId', ah(async (req, res) => {
   await query(
     `delete from connections
      where (requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1)`,
+    [req.user.id, req.params.userId],
+  );
+  await query(
+    `delete from notifications where type = 'connection_request' and is_read = false
+       and ((user_id = $1 and actor_id = $2) or (user_id = $2 and actor_id = $1))`,
     [req.user.id, req.params.userId],
   );
   res.json({ ok: true });
@@ -109,6 +121,13 @@ router.post('/messages', ah(async (req, res) => {
   if (!text) throw new HttpError(400, 'Message cannot be empty.');
   if (receiverId === req.user.id) throw new HttpError(400, 'You cannot message yourself.');
   await requireUser(receiverId);
+  // Chat is only open between members who have accepted each other's connection.
+  const link = await query(
+    `select 1 from connections where status = 'accepted'
+       and ((requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1))`,
+    [req.user.id, receiverId],
+  );
+  if (!link.rowCount) throw new HttpError(403, 'You can message this person once they accept your connection request.');
   const id = newId('msg');
   const { rows } = await query(
     `insert into messages (id, sender_id, receiver_id, text, attachment_name, is_read)
@@ -132,6 +151,17 @@ router.post('/conversations/:userId/read', ah(async (req, res) => {
      where receiver_id = $1 and sender_id = $2 and is_read = false`,
     [req.user.id, req.params.userId],
   );
+  res.json({ ok: true });
+}));
+
+/* ---------- notifications ---------- */
+router.get('/notifications', ah(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ notifications: await loadNotifications(req.user.id) });
+}));
+
+router.post('/notifications/read', ah(async (req, res) => {
+  await query('update notifications set is_read = true where user_id = $1 and is_read = false', [req.user.id]);
   res.json({ ok: true });
 }));
 
