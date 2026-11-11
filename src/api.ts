@@ -60,10 +60,8 @@ export const api = {
     request<{ ok: true; resendIn: number }>('POST', '/api/auth/forgot', { phone }),
   resetPassword: (phone: string, code: string, password: string) =>
     request<{ ok: true }>('POST', '/api/auth/reset', { phone, code, password }),
-  sendPhoneCode: (phone: string) =>
-    request<{ ok: true; resendIn: number }>('POST', '/api/me/phone/send', { phone }),
-  verifyPhone: (phone: string, code: string) =>
-    request<{ ok: true; phoneMasked: string }>('POST', '/api/me/phone/verify', { phone, code }),
+  savePhone: (phone: string) =>
+    request<{ ok: true; phoneMasked: string }>('POST', '/api/me/phone', { phone }),
   removePhone: () => request<{ ok: true }>('DELETE', '/api/me/phone'),
   googleSignIn: (credential: string) =>
     request<{ ok: true }>('POST', '/api/auth/google', { credential }),

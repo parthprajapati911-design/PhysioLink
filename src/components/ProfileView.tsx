@@ -233,14 +233,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-900">Mobile number</p>
                 {user.phoneVerified ? (
-                  <p className="text-xs text-slate-500">{user.phoneMasked} · <span className="text-teal-700 font-semibold">Verified</span> · used to reset your password</p>
+                  <p className="text-xs text-slate-500">{user.phoneMasked}</p>
                 ) : (
-                  <p className="text-xs text-slate-500">Add and verify your number so you can reset your password if you forget it. Only you can see it.</p>
+                  <p className="text-xs text-slate-500">Add your mobile number. Only you can see it.</p>
                 )}
               </div>
             </div>
             <button onClick={onOpenPhone} className="text-xs font-semibold border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-full cursor-pointer">
-              {user.phoneVerified ? 'Change' : 'Add & verify'}
+              {user.phoneVerified ? 'Change' : 'Add'}
             </button>
           </div>
         </Section>

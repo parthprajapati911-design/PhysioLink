@@ -67,7 +67,7 @@ git push -u origin main
 3. Under **Authorized JavaScript origins** add your site (e.g. `https://physiolink.onrender.com`, and `http://localhost:3000` for local testing). No redirect URI is needed.
 4. Copy the **Client ID** into Render as `GOOGLE_CLIENT_ID` (and into `.env` locally) and redeploy. The Google button then appears on the welcome page.
 
-## 6. Mobile verification and password reset by SMS (optional)
+## 6. Mobile number and password reset by SMS (optional)
 1. Create an account at https://www.fast2sms.com and open **Dev API** to copy your **API key**. Add some credit to the wallet (check their current pricing).
 2. In Render add `FAST2SMS_API_KEY` = your key and redeploy.
 3. Members add their number in **Profile → Account → Add & verify**. Later, on the login page, **Forgot password?** texts them a 6-digit code to set a new password.

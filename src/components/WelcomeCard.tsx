@@ -18,7 +18,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ user, postsCount, onEd
   const [hidden, setHidden] = useState(() => wasHidden(user.id));
 
   const items = [
-    { label: 'Verify your mobile number (to reset your password)', done: !!user.phoneVerified, action: onVerifyPhone },
+    { label: 'Add your mobile number', done: !!user.phoneVerified, action: onVerifyPhone },
     { label: 'Add a profile photo', done: !!user.avatar, action: onEditProfile },
     { label: 'Choose your tag: Academician, Clinician or Student', done: ['academician', 'clinician', 'student'].includes(user.accountType), action: onEditProfile },
     { label: 'Write a headline', done: !!user.headline, action: onEditProfile },
