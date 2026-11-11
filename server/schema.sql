@@ -173,3 +173,14 @@ create index if not exists notifications_user_idx on notifications(user_id, crea
 
 alter table images        enable row level security;
 alter table notifications enable row level security;
+
+-- ===== v3: password reset links sent by email (only a hash of the link token is stored) =====
+create table if not exists password_resets (
+  token_hash text primary key,
+  user_id    text not null references users(id) on delete cascade,
+  expires_at timestamptz not null,
+  used_at    timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists password_resets_user_idx on password_resets(user_id);
+alter table password_resets enable row level security;

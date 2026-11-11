@@ -35,6 +35,21 @@ services:
       # Testing only: set to "console" to skip real SMS; the code then appears in the Render Logs.
       - key: SMS_PROVIDER
         sync: false
+      # Password reset by EMAIL through Gmail (see README step 7). Your website address, no slash at the end.
+      - key: APP_URL
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      # Option A (needs a paid Render plan or other host that allows SMTP): Gmail app password
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      # Option B (works on Render free): Gmail API over HTTPS
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
       # Launch with an empty app: no sample people, posts or jobs.
       - key: SEED_DEMO_DATA
         value: "false"

@@ -49,7 +49,9 @@ export const errorMessage = (e: unknown): string =>
 
 export const api = {
   // auth
-  authConfig: () => request<{ googleClientId: string | null }>('GET', '/api/auth/config'),
+  authConfig: () => request<{ googleClientId: string | null; emailReset?: boolean }>('GET', '/api/auth/config'),
+  forgotEmail: (email: string) => request<{ ok: true }>('POST', '/api/auth/forgot-email', { email }),
+  resetEmail: (token: string, password: string) => request<{ ok: true }>('POST', '/api/auth/reset-email', { token, password }),
   login: (email: string, password: string) =>
     request<{ ok: true }>('POST', '/api/auth/login', { email, password }),
   signup: (name: string, email: string, password: string) =>

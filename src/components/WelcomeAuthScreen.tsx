@@ -8,6 +8,9 @@ interface WelcomeAuthScreenProps {
   onSignUp: (name: string, email: string, password: string) => Promise<string | null>;
   onGoogle: (credential: string) => Promise<string | null>;
   onResetPassword: (phone: string, code: string, password: string) => Promise<string | null>;
+  resetToken?: string | null; // from the link in the reset email
+  onResetByLink?: (token: string, password: string) => Promise<string | null>;
+  onLeaveResetLink?: () => void;
 }
 
 type Mode = 'login' | 'signup' | 'forgot';
@@ -37,8 +40,8 @@ function loadGoogleScript(): Promise<void> {
 const inputCls =
   'w-full text-sm text-slate-900 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all';
 
-// Forgot password: 1) mobile number  2) SMS code + new password.
-const ForgotPassword: React.FC<{
+// Forgot password by SMS: 1) mobile number  2) SMS code + new password.
+const ForgotBySms: React.FC<{
   onBack: () => void;
   onReset: (phone: string, code: string, password: string) => Promise<string | null>;
 }> = ({ onBack, onReset }) => {
@@ -126,8 +129,115 @@ const ForgotPassword: React.FC<{
   );
 };
 
-export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, onSignUp, onGoogle, onResetPassword }) => {
+// Forgot password by email: we send a one-time link.
+const ForgotByEmail: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const [email, setEmail] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wait, setWait] = useState(0);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  const send = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setBusy(true); setError(null);
+    try { await api.forgotEmail(email.trim()); setSent(true); setWait(60); } catch (err) { setError(errorMessage(err)); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-slate-900 font-display">Reset your password</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          {sent
+            ? <>If <b>{email.trim()}</b> has a PhysioLink account, we just sent a reset link. It works for 30 minutes. Check your Spam folder too.</>
+            : 'Enter the email you signed up with. We will email you a link to choose a new password.'}
+        </p>
+      </div>
+      {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-3 py-2 text-xs font-medium">{error}</div>}
+      <form onSubmit={send} className="space-y-3.5">
+        {!sent && (
+          <input className={inputCls} type="email" autoComplete="email" placeholder="Email address" aria-label="Email address" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+        )}
+        <button type="submit" disabled={busy || !email.includes('@') || wait > 0}
+          className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl text-sm cursor-pointer">
+          {sent ? (wait > 0 ? `Send again in ${wait}s` : 'Send the link again') : 'Email me a reset link'}
+        </button>
+      </form>
+      <button onClick={onBack} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">Back to log in</button>
+    </div>
+  );
+};
+
+// Shown when someone opens the link from the reset email.
+const ResetByLink: React.FC<{
+  token: string;
+  onReset: (token: string, password: string) => Promise<string | null>;
+  onLeave: () => void;
+}> = ({ token, onReset, onLeave }) => {
+  const [password, setPassword] = useState('');
+  const [again, setAgain] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 8) return setError('Password must be at least 8 characters.');
+    if (password !== again) return setError('The two passwords do not match.');
+    setBusy(true); setError(null);
+    const err = await onReset(token, password);
+    if (err) { setError(err); setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit} className="p-6 space-y-4">
+      <div>
+        <h2 className="text-lg font-bold text-slate-900 font-display">Choose a new password</h2>
+        <p className="text-sm text-slate-500 mt-1">Pick a password you have not used before. You will be logged in right after.</p>
+      </div>
+      {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-3 py-2 text-xs font-medium">{error}</div>}
+      <input className={inputCls} type="password" autoComplete="new-password" placeholder="New password (8+ characters)" aria-label="New password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+      <input className={inputCls} type="password" autoComplete="new-password" placeholder="Type it again" aria-label="Confirm new password" value={again} onChange={(e) => setAgain(e.target.value)} />
+      <button type="submit" disabled={busy || !password || !again}
+        className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl text-sm cursor-pointer">
+        Save password and log in
+      </button>
+      <button type="button" onClick={onLeave} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer">Back to log in</button>
+    </form>
+  );
+};
+
+// Forgot password: choose email (when available) or mobile SMS.
+const ForgotPassword: React.FC<{
+  onBack: () => void;
+  onReset: (phone: string, code: string, password: string) => Promise<string | null>;
+  emailEnabled: boolean;
+}> = ({ onBack, onReset, emailEnabled }) => {
+  const [method, setMethod] = useState<'email' | 'sms'>(emailEnabled ? 'email' : 'sms');
+  return (
+    <div>
+      {emailEnabled && (
+        <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 text-sm font-semibold text-center">
+          {([['email', 'By email'], ['sms', 'By mobile (SMS)']] as const).map(([m, label]) => (
+            <button key={m} onClick={() => setMethod(m)}
+              className={`py-3 border-b-2 cursor-pointer transition-colors ${method === m ? 'border-blue-700 text-blue-700 bg-white' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {method === 'email' && emailEnabled ? <ForgotByEmail onBack={onBack} /> : <ForgotBySms onBack={onBack} onReset={onReset} />}
+    </div>
+  );
+};
+
+export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, onSignUp, onGoogle, onResetPassword, resetToken, onResetByLink, onLeaveResetLink }) => {
   const [mode, setMode] = useState<Mode>('signup');
+  const [emailEnabled, setEmailEnabled] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -143,12 +253,12 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
 
   // Ask the server whether Google sign-in is set up.
   useEffect(() => {
-    api.authConfig().then((c) => setGoogleClientId(c.googleClientId)).catch(() => undefined);
+    api.authConfig().then((c) => { setGoogleClientId(c.googleClientId); setEmailEnabled(!!c.emailReset); }).catch(() => undefined);
   }, []);
 
   // Draw Google's official button.
   useEffect(() => {
-    if (!googleClientId || mode === 'forgot') return;
+    if (!googleClientId || mode === 'forgot' || resetToken) return;
     let cancelled = false;
     loadGoogleScript()
       .then(() => {
@@ -172,7 +282,7 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
       })
       .catch((e) => !cancelled && setError(errorMessage(e)));
     return () => { cancelled = true; };
-  }, [googleClientId, mode]);
+  }, [googleClientId, mode, resetToken]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,8 +317,10 @@ export const WelcomeAuthScreen: React.FC<WelcomeAuthScreenProps> = ({ onLogin, o
         </div>
 
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl shadow-blue-900/10 border border-slate-200 overflow-hidden">
-          {mode === 'forgot' ? (
-            <ForgotPassword onBack={() => switchMode('login')} onReset={onResetPassword} />
+          {resetToken && onResetByLink ? (
+            <ResetByLink token={resetToken} onReset={onResetByLink} onLeave={() => { onLeaveResetLink?.(); switchMode('login'); }} />
+          ) : mode === 'forgot' ? (
+            <ForgotPassword onBack={() => switchMode('login')} onReset={onResetPassword} emailEnabled={emailEnabled} />
           ) : (<>
           <div className="grid grid-cols-2 border-b border-slate-200 bg-slate-50 text-sm font-semibold text-center">
             {(['signup', 'login'] as Mode[]).map((m) => (

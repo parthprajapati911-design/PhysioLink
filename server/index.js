@@ -67,6 +67,8 @@ app.use('/api/auth/signup', authLimiter);
 app.use('/api/auth/google', authLimiter);
 app.use('/api/auth/forgot', authLimiter);
 app.use('/api/auth/reset', authLimiter);
+app.use('/api/auth/forgot-email', authLimiter);
+app.use('/api/auth/reset-email', authLimiter);
 app.use('/api/auth', authRoutes);
 
 // Photos are public (an <img> tag needs no sign-in); upload itself requires sign-in below.

@@ -243,6 +243,26 @@ export default function App() {
     }
   };
 
+  // Link from the reset email: https://site/?reset=<token>
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const t = new URLSearchParams(window.location.search).get('reset');
+    return t && /^[a-f0-9]{64}$/.test(t) ? t : null;
+  });
+  const leaveResetLink = () => {
+    setResetToken(null);
+    window.history.replaceState({}, '', window.location.pathname);
+  };
+  const handleResetByLink = async (token: string, password: string): Promise<string | null> => {
+    try {
+      await api.resetEmail(token, password);
+      leaveResetLink();
+      await refresh();
+      return null;
+    } catch (e) {
+      return errorMessage(e);
+    }
+  };
+
   const handleGoogle = async (credential: string): Promise<string | null> => {
     try {
       await api.googleSignIn(credential);
@@ -555,7 +575,7 @@ export default function App() {
   }
 
   if (authStatus === 'out' || !currentUser) {
-    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} onGoogle={handleGoogle} onResetPassword={handleResetPassword} />;
+    return <WelcomeAuthScreen onLogin={handleLogin} onSignUp={handleSignUp} onGoogle={handleGoogle} onResetPassword={handleResetPassword} resetToken={resetToken} onResetByLink={handleResetByLink} onLeaveResetLink={leaveResetLink} />;
   }
 
   return (

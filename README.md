@@ -75,6 +75,28 @@ git push -u origin main
 Codes expire after 10 minutes, allow 5 wrong tries, and can be re-sent after 60 seconds (max 5 per hour per number). Only Indian 10-digit mobile numbers are supported. Until a key is added, these screens show "not available yet".
 To try everything before paying for SMS, temporarily set `SMS_PROVIDER` = `console` and read the code in Render → **Logs** (remove it afterwards).
 
+## 7. Password reset by email with Gmail (recommended)
+People who forgot their password can get a one-time link by email (valid 30 minutes, works once). Without this, reset works only by SMS.
+Pick **one** option below, then add `APP_URL` and redeploy.
+
+**Always set:** `APP_URL` = your site address, e.g. `https://physiolink.onrender.com` (no slash at the end). `GMAIL_USER` = the Gmail address that will send the emails.
+
+**Option A, Gmail app password (simplest).**
+1. In your Google Account turn on **2-Step Verification** (Security page).
+2. Search "App passwords" in your Google Account, create one named PhysioLink, copy the 16 letters.
+3. In Render add `GMAIL_APP_PASSWORD` = those 16 letters.
+Note: Render's free plan blocks the mail ports (SMTP), so on the free plan this may time out. Check the Render Logs for "Reset email could not be sent". If you see it, use Option B.
+
+**Option B, Gmail API (works on Render free).**
+1. Go to console.cloud.google.com, create a project, and enable **Gmail API**.
+2. **OAuth consent screen**: choose External, fill the names, then press **Publish app**. If you leave it in *Testing*, the key stops working after 7 days.
+3. **Credentials > Create credentials > OAuth client ID > Web application.** Under Authorized redirect URIs add `https://developers.google.com/oauthplayground`. Copy the Client ID and Client secret.
+4. Open developers.google.com/oauthplayground. Click the gear icon, tick **Use your own OAuth credentials**, paste the Client ID and secret. In the left box type `https://www.googleapis.com/auth/gmail.send`, press **Authorize APIs**, sign in with the sending Gmail (press Advanced > Continue if Google shows a warning), then **Exchange authorization code for tokens** and copy the **Refresh token**.
+5. In Render add `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`.
+
+Check it: log out, press **Forgot password > By email**, enter your email, open the message (check Spam the first time).
+Gmail allows about 500 emails a day from a normal account, which is plenty for testing. For a big public launch, move to a mail service such as Resend or Brevo.
+
 ## How it works
 - **Sign up:** name + email + password, or Google. Accounts start completely blank, and a welcome card guides new members through setting up their profile.
 - **Profile:** photo, cover photo, tag (**Academician / Clinician / Student**), headline, workplace, location, about, experience, education, licenses & certifications, skills. Tap any name or photo to open that person's profile, where you can **Connect** or **Message** them.

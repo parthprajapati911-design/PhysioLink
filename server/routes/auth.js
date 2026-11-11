@@ -2,7 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import { query } from '../db.js';
+import crypto from 'node:crypto';
 import { issueOtp, checkOtp, normalizePhone, RESEND_SECONDS } from '../otp.js';
+import { sendMail, mailEnabled, resetEmail } from '../mailer.js';
 import { startSession, endSession } from '../auth.js';
 import { HttpError, ah, newId, str } from '../util.js';
 
@@ -16,7 +18,7 @@ const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : nul
 
 // Tells the sign-in screen whether to show a working Google button.
 router.get('/config', (_req, res) => {
-  res.json({ googleClientId: GOOGLE_CLIENT_ID || null });
+  res.json({ googleClientId: GOOGLE_CLIENT_ID || null, emailReset: mailEnabled() });
 });
 
 // Create account: name + email + password. Everything else is added later in the profile.
@@ -120,6 +122,69 @@ router.post('/reset', ah(async (req, res) => {
   const hash = await bcrypt.hash(password, 10);
   await query('update users set password_hash = $2, password_changed_at = now() where id = $1', [row.user_id, hash]);
   startSession(res, row.user_id);
+  res.json({ ok: true });
+}));
+
+// Forgot password by EMAIL, step 1: send a one-time link. The reply is always the same,
+// so nobody can use this to find out who is registered.
+const RESET_MINUTES = 30;
+const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
+function appBaseUrl(req) {
+  const fixed = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || '').trim().replace(/\/+$/, '');
+  if (fixed) return fixed;
+  return process.env.NODE_ENV === 'production' ? '' : `${req.protocol}://${req.get('host')}`;
+}
+router.post('/forgot-email', ah(async (req, res) => {
+  if (!mailEnabled()) throw new HttpError(503, 'Email reset is not available right now.');
+  const email = str(req.body?.email, 200).toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Please enter a valid email address.');
+  const base = appBaseUrl(req);
+  const { rows } = await query('select id from users where lower(email) = $1 limit 1', [email]);
+  if (rows[0] && base) {
+    const userId = rows[0].id;
+    // at most one email per minute per account
+    const recent = await query(
+      "select 1 from password_resets where user_id = $1 and created_at > now() - interval '60 seconds'",
+      [userId],
+    );
+    if (!recent.rowCount) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await query('delete from password_resets where user_id = $1', [userId]);
+      await query(
+        `insert into password_resets (token_hash, user_id, expires_at)
+         values ($1, $2, now() + ($3 || ' minutes')::interval)`,
+        [sha256(token), userId, String(RESET_MINUTES)],
+      );
+      try {
+        await sendMail({ to: email, ...resetEmail(`${base}/?reset=${token}`, RESET_MINUTES) });
+      } catch (err) {
+        console.error('Reset email could not be sent:', err.message);
+      }
+    }
+  } else if (rows[0] && !base) {
+    console.error('Reset email skipped: set APP_URL to your website address (e.g. https://physiolink.onrender.com).');
+  }
+  res.json({ ok: true });
+}));
+
+// Forgot password by EMAIL, step 2: link token + new password. Signs the person in.
+router.post('/reset-email', ah(async (req, res) => {
+  const token = typeof req.body?.token === 'string' ? req.body.token : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (password.length < 8 || password.length > 100) throw new HttpError(400, 'Password must be 8 to 100 characters.');
+  if (!/^[a-f0-9]{64}$/.test(token)) throw new HttpError(400, 'This reset link is not valid. Please request a new one.');
+  // Atomic: the link can be used only once, and only before it expires.
+  const used = await query(
+    `update password_resets set used_at = now()
+      where token_hash = $1 and used_at is null and expires_at > now() returning user_id`,
+    [sha256(token)],
+  );
+  if (!used.rowCount) throw new HttpError(400, 'This reset link has expired or was already used. Please request a new one.');
+  const userId = used.rows[0].user_id;
+  const hash = await bcrypt.hash(password, 10);
+  await query('update users set password_hash = $2, password_changed_at = now() where id = $1', [userId, hash]);
+  await query('delete from password_resets where user_id = $1', [userId]);
+  startSession(res, userId);
   res.json({ ok: true });
 }));
 
