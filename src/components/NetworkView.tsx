@@ -20,7 +20,7 @@ type Tab = 'discover' | 'connections' | 'sent';
 export const NetworkView: React.FC<NetworkViewProps> = ({
   connections, currentUser, onAcceptConnection, onIgnoreConnection, onConnectRequest, onRemoveConnection, onOpenChatWithUser, onViewProfile,
 }) => {
-  const [tab, setTab] = useState<Tab>('discover');
+  const [tab, setTab] = useState<Tab>('connections');
   const [searchQuery, setSearchQuery] = useState('');
   const [group, setGroup] = useState<string>('all');
 
@@ -37,8 +37,8 @@ export const NetworkView: React.FC<NetworkViewProps> = ({
   const shown = (tab === 'discover' ? discover : tab === 'connections' ? mine : sent).filter(matches);
 
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'discover', label: 'Discover', count: discover.length },
     { id: 'connections', label: 'My connections', count: mine.length },
+    { id: 'discover', label: 'Discover', count: discover.length },
     { id: 'sent', label: 'Sent', count: sent.length },
   ];
   const groups = [['all', 'All'], ['clinician', 'Clinicians'], ['academician', 'Academicians'], ['student', 'Students']];

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ViewTab,
   UserProfile,
@@ -41,6 +41,7 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [posts, setPosts] = useState<Post[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const mutationRef = useRef(0); // bumps on every connection action so stale background polls are ignored
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -114,8 +115,10 @@ export default function App() {
     const sync = async () => {
       if (busy || document.hidden) return;
       busy = true;
+      const stamp = mutationRef.current;
       try {
         const data = await api.bootstrap();
+        if (stamp !== mutationRef.current) return;
         setUsers(data.users);
         setPosts(data.posts);
         setConnections(data.connections);
@@ -145,8 +148,10 @@ export default function App() {
     const poll = async () => {
       if (busy || document.hidden) return;
       busy = true;
+      const stamp = mutationRef.current;
       try {
         const d = await api.network();
+        if (stamp !== mutationRef.current) return;
         setConnections(d.connections);
         setNotifications(d.notifications);
         // Something new happened (a connection posted, accepted, liked...): refresh posts and people right away.
@@ -170,6 +175,26 @@ export default function App() {
   }, [authStatus]);
 
   // Run a server call; on failure show a message and re-sync with the server.
+  // Connection actions: wait for the server, then reload connections, counts and notifications.
+  // Background polls that started before the action are ignored so they cannot undo it.
+  const afterConnectionChange = async (promise: Promise<unknown>) => {
+    mutationRef.current++;
+    try {
+      await promise;
+    } catch (e) {
+      notify(errorMessage(e));
+    }
+    try {
+      const d = await api.bootstrap();
+      setUsers(d.users);
+      setConnections(d.connections);
+      setNotifications(d.notifications || []);
+    } catch {
+      /* the next poll will catch up */
+    }
+    mutationRef.current++;
+  };
+
   const run = (promise: Promise<unknown>) => {
     promise.catch((e) => {
       notify(errorMessage(e));
@@ -466,7 +491,7 @@ export default function App() {
       [currentUser.id]: { ...currentUser, connectionsCount: currentUser.connectionsCount + 1 },
     }));
     setNotifications((prev) => prev.filter((n) => !(n.type === 'connection_request' && n.actorId === connectionId)));
-    run(api.acceptConnection(connectionId));
+    afterConnectionChange(api.acceptConnection(connectionId));
   };
 
   const handleIgnoreConnection = (connectionId: string) => {
@@ -474,7 +499,7 @@ export default function App() {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, status: 'suggestion' } : c))
     );
-    run(api.removeConnection(connectionId));
+    afterConnectionChange(api.removeConnection(connectionId));
   };
 
   // Withdraw a sent request, or remove an existing connection.
@@ -489,14 +514,14 @@ export default function App() {
         [currentUser.id]: { ...currentUser, connectionsCount: Math.max(0, currentUser.connectionsCount - 1) },
       }));
     }
-    run(api.removeConnection(connectionId));
+    afterConnectionChange(api.removeConnection(connectionId));
   };
 
   const handleConnectRequest = (connectionId: string) => {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, status: 'requested' } : c))
     );
-    run(api.requestConnection(connectionId));
+    afterConnectionChange(api.requestConnection(connectionId));
   };
 
   const handleApplyOpportunity = (opportunityId: string, note: string, phone: string) => {
