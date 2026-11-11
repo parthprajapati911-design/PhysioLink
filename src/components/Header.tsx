@@ -16,6 +16,8 @@ interface HeaderProps {
   notifications?: AppNotification[];
   onOpenNotifications?: () => void;
   onPickNotification?: (n: AppNotification) => void;
+  onAcceptConnection?: (userId: string) => void;
+  onIgnoreConnection?: (userId: string) => void;
   onViewProfile: (userId: string) => void;
 }
 
@@ -83,6 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
   notifications = [],
   onOpenNotifications,
   onPickNotification,
+  onAcceptConnection,
+  onIgnoreConnection,
   onViewProfile,
 }) => {
   return (
@@ -211,6 +215,8 @@ export const Header: React.FC<HeaderProps> = ({
               notifications={notifications}
               onOpen={() => onOpenNotifications?.()}
               onPick={(n) => onPickNotification?.(n)}
+              onAccept={onAcceptConnection}
+              onIgnore={onIgnoreConnection}
             />
             <button
               onClick={onOpenCreateModal}

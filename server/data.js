@@ -11,7 +11,10 @@ export async function loadUsers(meId, meRole) {
          where c.status = 'accepted' and (c.requester_id = u.id or c.addressee_id = u.id))::int as conn_count
      from users u
      where u.role <> 'admin' or u.id = $1
-     order by u.created_at asc
+        or u.id in (select case when requester_id = $1 then addressee_id else requester_id end
+                      from connections where requester_id = $1 or addressee_id = $1)
+     order by (u.id = $1 or u.id in (select case when requester_id = $1 then addressee_id else requester_id end
+                      from connections where requester_id = $1 or addressee_id = $1)) desc, u.created_at asc
      limit 1000`,
     [meId],
   );

@@ -465,10 +465,12 @@ export default function App() {
       ...prev,
       [currentUser.id]: { ...currentUser, connectionsCount: currentUser.connectionsCount + 1 },
     }));
+    setNotifications((prev) => prev.filter((n) => !(n.type === 'connection_request' && n.actorId === connectionId)));
     run(api.acceptConnection(connectionId));
   };
 
   const handleIgnoreConnection = (connectionId: string) => {
+    setNotifications((prev) => prev.filter((n) => !(n.type === 'connection_request' && n.actorId === connectionId)));
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, status: 'suggestion' } : c))
     );
@@ -621,6 +623,8 @@ export default function App() {
           notifications={notifications}
           onOpenNotifications={handleOpenNotifications}
           onPickNotification={handlePickNotification}
+          onAcceptConnection={handleAcceptConnection}
+          onIgnoreConnection={handleIgnoreConnection}
         />
 
         <main className="flex-1 py-6 px-4 sm:px-6 pb-24 md:pb-6">

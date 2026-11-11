@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { loadConversations } from '../data.js';
-import { notify, loadNotifications } from '../notify.js';
+import { notify, loadNotifications, clearRequestNotifications } from '../notify.js';
 import { toUser } from '../mappers.js';
 import { HttpError, ah, newId, str, cleanProfile, chatTime } from '../util.js';
 
@@ -62,25 +62,33 @@ router.post('/connections/:userId/request', ah(async (req, res) => {
   const other = req.params.userId;
   if (other === req.user.id) throw new HttpError(400, 'You cannot connect with yourself.');
   await requireUser(other);
-  // If they already invited me, accepting is the natural result.
-  const reverse = await query(
-    `update connections set status = 'accepted'
-     where requester_id = $1 and addressee_id = $2 returning 1`,
-    [other, req.user.id],
+  // Already connected? Nothing to do (and no notification).
+  const existing = await query(
+    `select requester_id, status from connections
+     where (requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1)`,
+    [req.user.id, other],
   );
-  if (!reverse.rowCount) {
+  const row = existing.rows[0];
+  if (row && row.status === 'accepted') return res.json({ status: 'connected' });
+  if (row && row.requester_id === req.user.id) return res.json({ status: 'requested' });
+  // If they already invited me, accepting is the natural result.
+  if (row && row.requester_id === other) {
     await query(
-      `insert into connections (requester_id, addressee_id, status)
-       values ($1, $2, 'pending') on conflict do nothing`,
-      [req.user.id, other],
+      `update connections set status = 'accepted' where requester_id = $1 and addressee_id = $2`,
+      [other, req.user.id],
     );
-  }
-  if (reverse.rowCount) {
+    await clearRequestNotifications(req.user.id, other);
     await notify(other, req.user.id, 'connection_accepted');
-  } else {
-    await notify(other, req.user.id, 'connection_request');
+    return res.json({ status: 'connected' });
   }
-  res.json({ status: reverse.rowCount ? 'connected' : 'requested' });
+  // Create the pending request FIRST; only notify once it really exists.
+  await query(
+    `insert into connections (requester_id, addressee_id, status) values ($1, $2, 'pending')
+     on conflict do nothing`,
+    [req.user.id, other],
+  );
+  await notify(other, req.user.id, 'connection_request');
+  res.json({ status: 'requested' });
 }));
 
 router.post('/connections/:userId/accept', ah(async (req, res) => {
@@ -90,6 +98,7 @@ router.post('/connections/:userId/accept', ah(async (req, res) => {
     [req.params.userId, req.user.id],
   );
   if (!r.rowCount) throw new HttpError(404, 'No pending request from this user.');
+  await clearRequestNotifications(req.user.id, req.params.userId);
   await notify(req.params.userId, req.user.id, 'connection_accepted');
   res.json({ status: 'connected' });
 }));
@@ -101,11 +110,7 @@ router.delete('/connections/:userId', ah(async (req, res) => {
      where (requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1)`,
     [req.user.id, req.params.userId],
   );
-  await query(
-    `delete from notifications where type = 'connection_request' and is_read = false
-       and ((user_id = $1 and actor_id = $2) or (user_id = $2 and actor_id = $1))`,
-    [req.user.id, req.params.userId],
-  );
+  await clearRequestNotifications(req.user.id, req.params.userId);
   res.json({ ok: true });
 }));
 

@@ -33,7 +33,11 @@ export async function loadNotifications(userId) {
   const { rows } = await query(
     `select n.*, u.profile as actor_profile
        from notifications n left join users u on u.id = n.actor_id
-      where n.user_id = $1 order by n.created_at desc limit 40`,
+      where n.user_id = $1
+       and (n.type <> 'connection_request' or exists (
+             select 1 from connections c
+              where c.status = 'pending' and c.requester_id = n.actor_id and c.addressee_id = n.user_id))
+     order by n.created_at desc limit 40`,
     [userId],
   );
   return rows.map((r) => ({
@@ -60,5 +64,19 @@ export async function notifyConnectionsOfPost(authorId, postId) {
     for (const r of rows.slice(0, 200)) await notify(r.other, authorId, 'post', postId);
   } catch (err) {
     console.error('notifyConnectionsOfPost failed:', err.message);
+  }
+}
+
+// Remove connection-request notifications between two members (read or unread),
+// once the request is accepted, ignored or withdrawn.
+export async function clearRequestNotifications(a, b) {
+  try {
+    await query(
+      `delete from notifications where type = 'connection_request'
+         and ((user_id = $1 and actor_id = $2) or (user_id = $2 and actor_id = $1))`,
+      [a, b],
+    );
+  } catch (err) {
+    console.error('clearRequestNotifications failed:', err.message);
   }
 }

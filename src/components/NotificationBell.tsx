@@ -7,6 +7,8 @@ interface Props {
   notifications: AppNotification[];
   onOpen: () => void; // called when the panel opens (marks everything as read)
   onPick: (n: AppNotification) => void;
+  onAccept?: (userId: string) => void;
+  onIgnore?: (userId: string) => void;
 }
 
 const ICON: Record<string, React.ReactNode> = {
@@ -16,7 +18,7 @@ const ICON: Record<string, React.ReactNode> = {
   comment: <MessageCircle className="w-3 h-3" />,
 };
 
-export const NotificationBell: React.FC<Props> = ({ notifications, onOpen, onPick }) => {
+export const NotificationBell: React.FC<Props> = ({ notifications, onOpen, onPick, onAccept, onIgnore }) => {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const unread = notifications.filter((n) => !n.isRead).length;
@@ -56,20 +58,27 @@ export const NotificationBell: React.FC<Props> = ({ notifications, onOpen, onPic
             {notifications.length === 0 ? (
               <p className="text-xs text-slate-500 px-4 py-8 text-center">Nothing yet. Connection requests, likes and comments will show up here.</p>
             ) : notifications.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => { setOpen(false); onPick(n); }}
-                className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 cursor-pointer ${n.isRead ? '' : 'bg-blue-50/50'}`}
-              >
-                <span className="relative shrink-0">
-                  <Avatar src={n.actorAvatar} name={n.actorName} className="w-10 h-10 rounded-full" />
-                  <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-700 text-white flex items-center justify-center ring-2 ring-white">{ICON[n.type] || <Bell className="w-3 h-3" />}</span>
-                </span>
-                <span className="min-w-0 text-sm text-slate-700">
-                  <b className="text-slate-900">{n.actorName}</b> {n.text}
-                  <span className="block text-[11px] text-slate-400 mt-0.5">{n.timestamp}</span>
-                </span>
-              </button>
+              <div key={n.id} className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-50 ${n.isRead ? '' : 'bg-blue-50/50'}`}>
+                <button
+                  onClick={() => { setOpen(false); onPick(n); }}
+                  className="flex-1 min-w-0 flex items-start gap-3 text-left cursor-pointer"
+                >
+                  <span className="relative shrink-0">
+                    <Avatar src={n.actorAvatar} name={n.actorName} className="w-10 h-10 rounded-full" />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-blue-700 text-white flex items-center justify-center ring-2 ring-white">{ICON[n.type] || <Bell className="w-3 h-3" />}</span>
+                  </span>
+                  <span className="min-w-0 text-sm text-slate-700">
+                    <b className="text-slate-900">{n.actorName}</b> {n.text}
+                    <span className="block text-[11px] text-slate-400 mt-0.5">{n.timestamp}</span>
+                  </span>
+                </button>
+                {n.type === 'connection_request' && onAccept && onIgnore && (
+                  <span className="flex flex-col gap-1 shrink-0">
+                    <button onClick={() => onAccept(n.actorId)} className="px-3 py-1 rounded-full bg-blue-700 hover:bg-blue-800 text-white text-[11px] font-semibold cursor-pointer">Accept</button>
+                    <button onClick={() => onIgnore(n.actorId)} className="px-3 py-1 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100 text-[11px] font-semibold cursor-pointer">Ignore</button>
+                  </span>
+                )}
+              </div>
             ))}
           </div>
         </div>
