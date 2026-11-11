@@ -11,6 +11,15 @@ export class ApiError extends Error {
   }
 }
 
+export interface AdminStats {
+  members: number;
+  verifiedClinicians: number;
+  verifiedAcademicians: number;
+  students: number;
+  pending: number;
+  posts: number;
+}
+
 export interface Bootstrap {
   me: UserProfile;
   users: Record<string, UserProfile>;
@@ -20,6 +29,7 @@ export interface Bootstrap {
   verifications: VerificationRequest[];
   conversations: Conversation[];
   notifications: AppNotification[];
+  adminStats?: AdminStats | null;
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {

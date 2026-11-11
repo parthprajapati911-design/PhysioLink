@@ -145,6 +145,24 @@ export async function loadVerifications() {
   return rows.map(toVerification);
 }
 
+// Real platform counts for the admin console (admins and sample accounts are excluded).
+export async function loadAdminStats() {
+  const { rows } = await query(
+    `select
+       (select count(*) from users where role <> 'admin' and not is_demo)::int as members,
+       (select count(*) from users where role <> 'admin' and not is_demo and account_type = 'clinician' and verified_status = 'verified')::int as verified_clinicians,
+       (select count(*) from users where role <> 'admin' and not is_demo and account_type = 'academician' and verified_status = 'verified')::int as verified_academicians,
+       (select count(*) from users where role <> 'admin' and not is_demo and account_type = 'student')::int as students,
+       (select count(*) from verifications where status = 'pending')::int as pending,
+       (select count(*) from posts p join users u on u.id = p.author_id where not u.is_demo)::int as posts`,
+  );
+  const r = rows[0];
+  return {
+    members: r.members, verifiedClinicians: r.verified_clinicians, verifiedAcademicians: r.verified_academicians,
+    students: r.students, pending: r.pending, posts: r.posts,
+  };
+}
+
 export async function loadConversations(meId) {
   const { rows } = await query(
     `select * from messages where sender_id = $1 or receiver_id = $1
@@ -203,13 +221,14 @@ export async function loadConversations(meId) {
 export async function buildBootstrap(user) {
   const users = await loadUsers(user.id, user.role);
   const me = users[user.id];
-  const [posts, opportunities, connections, conversations, verifications, notifications] = await Promise.all([
+  const [posts, opportunities, connections, conversations, verifications, notifications, adminStats] = await Promise.all([
     loadPosts(user.id),
     loadOpportunities(user.id),
     loadConnections(user.id, users),
     loadConversations(user.id),
     user.role === 'admin' ? loadVerifications() : Promise.resolve([]),
     loadNotifications(user.id),
+    user.role === 'admin' ? loadAdminStats() : Promise.resolve(null),
   ]);
-  return { me, users, posts, opportunities, connections, conversations, verifications, notifications };
+  return { me, users, posts, opportunities, connections, conversations, verifications, notifications, adminStats };
 }

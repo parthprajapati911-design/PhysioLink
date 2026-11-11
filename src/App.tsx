@@ -12,7 +12,7 @@ import {
   AppNotification
 } from './types';
 import { api, errorMessage } from './api';
-import type { Bootstrap } from './api';
+import type { Bootstrap, AdminStats } from './api';
 import { LOGO_URL, BRAND_NAME, TAGLINE } from './data/brand';
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -44,6 +44,7 @@ export default function App() {
   const mutationRef = useRef(0); // bumps on every connection action so stale background polls are ignored
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>('');
@@ -72,6 +73,7 @@ export default function App() {
     setConnections(data.connections);
     setOpportunities(data.opportunities);
     setVerifications(data.verifications);
+    setAdminStats(data.adminStats ?? null);
     setConversations(data.conversations);
     setNotifications(data.notifications || []);
     setActiveConversationId((prev) =>
@@ -124,6 +126,7 @@ export default function App() {
         setConnections(data.connections);
         setOpportunities(data.opportunities);
         setVerifications(data.verifications);
+        setAdminStats(data.adminStats ?? null);
         setNotifications(data.notifications || []);
       } catch {
         /* ignore temporary network errors */
@@ -740,6 +743,7 @@ export default function App() {
           {currentTab === 'admin' && isAdmin && (
             <AdminView
               verifications={verifications}
+              stats={adminStats}
               onApproveVerification={handleApproveVerification}
               onRejectVerification={handleRejectVerification}
             />

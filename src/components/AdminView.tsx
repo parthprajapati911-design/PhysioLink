@@ -1,5 +1,6 @@
 import React from 'react';
 import { VerificationRequest } from '../types';
+import type { AdminStats } from '../api';
 import { 
   ShieldCheck, 
   CheckCircle2, 
@@ -15,12 +16,14 @@ import {
 
 interface AdminViewProps {
   verifications: VerificationRequest[];
+  stats: AdminStats | null;
   onApproveVerification: (id: string) => void;
   onRejectVerification: (id: string) => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
   verifications,
+  stats,
   onApproveVerification,
   onRejectVerification,
 }) => {
@@ -46,25 +49,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="bg-teal-500/20 text-teal-300 border border-teal-500/30 text-xs font-semibold px-3 py-1.5 rounded-xl">
-            Audit Mode: Active
-          </span>
-        </div>
       </div>
 
-      {/* KPI Stats Cards */}
+      {/* KPI Stats Cards (live counts from the database) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
           <span className="text-xs text-slate-500 block">Verified Clinicians</span>
-          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">2,840</span>
-          <span className="text-[10px] text-teal-700 font-medium">State Council Audited</span>
+          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">{(stats?.verifiedClinicians ?? 0).toLocaleString('en-IN')}</span>
+          <span className="text-[10px] text-teal-700 font-medium">Approved by admin</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
-          <span className="text-xs text-slate-500 block">Active Student Interns</span>
-          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">1,920</span>
-          <span className="text-[10px] text-blue-700 font-medium">BPT / MPT Candidates</span>
+          <span className="text-xs text-slate-500 block">Student Members</span>
+          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">{(stats?.students ?? 0).toLocaleString('en-IN')}</span>
+          <span className="text-[10px] text-blue-700 font-medium">of {(stats?.members ?? 0).toLocaleString('en-IN')} total members</span>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
@@ -76,9 +74,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
-          <span className="text-xs text-slate-500 block">Case Discussions</span>
-          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">8,420</span>
-          <span className="text-[10px] text-slate-400 font-medium">Zero Moderation Flags</span>
+          <span className="text-xs text-slate-500 block">Posts</span>
+          <span className="text-2xl font-bold text-slate-900 font-mono tabular-nums mt-1 block">{(stats?.posts ?? 0).toLocaleString('en-IN')}</span>
+          <span className="text-[10px] text-slate-400 font-medium">Shared by members</span>
         </div>
       </div>
 
